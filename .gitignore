@@ -1,0 +1,22 @@
+# --- Archivos de Base de Datos ---
+*.sqlite3
+db.sqlite3
+datadump.json
+
+# --- Archivos compilados de Python---
+*.pyc
+__pycache__/
+*.py[cod]
+
+# --- Entornos Virtuales ---
+venv/
+env/
+.env
+
+# --- Archivos de sistema ---
+.DS_Store
+Thumbs.db
+
+*/migrations/__pycache__/
+
+

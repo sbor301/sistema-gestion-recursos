@@ -1,0 +1,144 @@
+{% extends 'proyectos/base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">Panel de Control</h1>
+
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary mb-3 shadow">
+                <div class="card-body">
+                    <h5 class="card-title">Proyectos</h5>
+                    <p class="card-text display-4">{{ total_proyectos }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success mb-3 shadow">
+                <div class="card-body">
+                    <h5 class="card-title">Tareas Totales</h5>
+                    <p class="card-text display-4">{{ total_tareas }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info mb-3 shadow">
+                <div class="card-body">
+                    <h5 class="card-title">Recursos</h5>
+                    <p class="card-text display-4">{{ total_recursos }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning mb-3 shadow">
+                <div class="card-body">
+                    <h5 class="card-title">Completadas</h5>
+                    <p class="card-text display-4">{{ tareas_completadas }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="alert alert-info">
+            <strong>💡 Tip:</strong> Registra nuevos proyectos en el Admin Panel para ver cómo se actualiza esta tabla automáticamente.
+        </div>
+    </div>
+
+    <div class="card-body p-0"> 
+        {% if proyectos_por_cc %}
+        <div class="accordion accordion-flush" id="accordionCC">
+            {% for item in proyectos_por_cc %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="heading{{ forloop.counter }}">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#collapse{{ forloop.counter }}">
+                        <div class="d-flex justify-content-between w-100 me-3">
+                            <span>
+                                <i class="bi bi-building me-2 text-secondary"></i>
+                                {{ item.nombre_cc }}
+                            </span>
+                            <span class="badge bg-primary rounded-pill">{{ item.cantidad }}</span>
+                        </div>
+                    </button>
+                </h2>
+                <div id="collapse{{ forloop.counter }}" class="accordion-collapse collapse"
+                    data-bs-parent="#accordionCC">
+                    <div class="accordion-body bg-light">
+                        <ul class="list-group list-group-flush">
+                            {% for proy in item.lista_proyectos %}
+                            <li class="list-group-item bg-transparent border-0 py-1">
+                                <i class="bi bi-caret-right-fill text-muted small"></i>
+                                <strong>{{ proy.nombre }}</strong>
+                                <small class="text-muted ms-2">
+                                    ({{ proy.fecha_inicio|date:"d M" }} - {{ proy.fecha_fin_estimada|date:"d M" }})
+                                </small>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="p-3 text-muted">No hay proyectos registrados aún.</div>
+        {% endif %}
+    </div>
+</div>
+
+<hr>
+
+<h4 class="mb-3 mt-4 text-secondary ms-4">Accesos Rápidos</h4>
+<div class="row g-3 justify-content-center px-4 mb-5"> 
+        
+        <div class="col-md-3 col-sm-6">
+            <a href="{% url 'lista_proyectos' %}" class="text-decoration-none">
+                <div class="card h-100 hover-shadow border-info shadow-sm">
+                    <div class="card-body text-center p-4"> 
+                        <i class="bi bi-folder2-open display-4 text-info mb-2"></i>
+                        <h5 class="mt-2 text-dark">Portafolio</h5>
+                        <p class="text-muted small mb-0">Ver lista de proyectos.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+            <a href="{% url 'gantt' %}" class="text-decoration-none">
+                <div class="card h-100 hover-shadow border-primary shadow-sm">
+                    <div class="card-body text-center p-4"> 
+                        <i class="bi bi-calendar-week display-4 text-primary mb-2"></i>
+                        <h5 class="mt-2 text-dark">Ver Cronograma</h5>
+                        <p class="text-muted small mb-0">Gestión de tiempos y entregas.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+            <a href="{% url 'buscar' %}" class="text-decoration-none">
+                <div class="card h-100 hover-shadow border-success shadow-sm">
+                    <div class="card-body text-center p-4">
+                        <i class="bi bi-person-check display-4 text-success mb-2"></i>
+                        <h5 class="mt-2 text-dark">Buscar Disponibilidad</h5>
+                        <p class="text-muted small mb-0">Encuentra recursos libres.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+            <a href="{% url 'recursos' %}" class="text-decoration-none">
+                <div class="card h-100 hover-shadow border-warning shadow-sm">
+                    <div class="card-body text-center p-4">
+                        <i class="bi bi-people display-4 text-warning mb-2"></i>
+                        <h5 class="mt-2 text-dark">Estado del Personal</h5>
+                        <p class="text-muted small mb-0">¿Quién está haciendo qué?</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+</div>
+{% endblock %}

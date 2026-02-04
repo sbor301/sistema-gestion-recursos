@@ -1,0 +1,106 @@
+{% extends 'proyectos/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-folder2-open me-2"></i>Portafolio de Proyectos</h2>
+        <a href="/admin/proyectos/proyecto/add/" class="btn btn-primary" target="_blank">
+            <i class="bi bi-plus-lg"></i> Nuevo Proyecto
+        </a>
+    </div>
+
+    {% for p in proyectos %}
+    <div class="card shadow-sm mb-4 border-start border-4 border-primary">
+        
+        <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+            <div>
+                <h4 class="mb-0 text-primary fw-bold">{{ p.nombre }}</h4>
+                <small class="text-muted">
+                    {{ p.get_unidad_negocio_display }} | CC: {{ p.centro_costo }} | 
+                    <i class="bi bi-calendar"></i> Fin: {{ p.fecha_fin_estimada }}
+                </small>
+            </div>
+            <div class="text-end" style="min_width: 150px;">
+                <span class="small text-muted">Avance General</span>
+                <div class="progress" style="height: 20px; width: 150px;">
+                    <div class="progress-bar {% if p.avance_total == 100 %}bg-success{% else %}bg-primary{% endif %}" 
+                         role="progressbar" style="width: {{ p.avance_total }}%">
+                        {{ p.avance_total }}%
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Tarea</th>
+                            <th>Responsable</th>
+                            <th>Fechas</th>
+                            <th>Progreso</th>
+                            <th>Estado</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in p.tareas.all %}
+                        <tr>
+                            <td class="ps-4 fw-medium">{{ t.nombre }}</td>
+                            <td>
+                                {% if t.asignado_a %}
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-light rounded-circle text-center fw-bold me-2" style="width:30px; height:30px; line-height:30px;">
+                                            {{ t.asignado_a.nombre|slice:":1" }}
+                                        </div>
+                                        {{ t.asignado_a.nombre }}
+                                    </div>
+                                {% else %}
+                                    <span class="badge bg-secondary">Sin asignar</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small class="d-block text-muted">In: {{ t.fecha_inicio|date:"d M" }}</small>
+                                <small class="d-block text-muted">Fn: {{ t.fecha_fin|date:"d M" }}</small>
+                            </td>
+                            <td>
+                                <div class="progress" style="height: 6px; width: 80px;">
+                                    <div class="progress-bar bg-info" style="width: {{ t.progreso }}%"></div>
+                                </div>
+                                <small class="text-muted">{{ t.progreso }}%</small>
+                            </td>
+                            <td>
+                                {% if t.estado_actual == 'COMPLETADO' %}
+                                    <span class="badge bg-success">Completado</span>
+                                {% elif t.estado_actual == 'ATRASADO' %}
+                                    <span class="badge bg-danger">Atrasado</span>
+                                {% elif t.estado_actual == 'EN_CURSO' %}
+                                    <span class="badge bg-primary">En Curso</span>
+                                {% elif t.estado_actual == 'INICIANDO' %}
+                                    <span class="badge bg-warning text-dark">Sin Avance</span>
+                                {% else %}
+                                    <span class="badge bg-light text-dark border">Pendiente</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'admin:proyectos_tarea_change' t.id %}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-3 text-muted">
+                                <em>Este proyecto aún no tiene tareas creadas.</em>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

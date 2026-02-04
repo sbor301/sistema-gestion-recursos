@@ -1,0 +1,202 @@
+{% extends 'proyectos/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        {% if tarea_seleccionada %}
+        <div>
+            <h2 class="text-primary"><i class="bi bi-shuffle me-2"></i>Reasignar Tarea</h2>
+            <h5 class="text-muted">Buscando candidato para: <strong>{{ tarea_seleccionada.nombre }}</strong></h5>
+            <div class="mt-2">
+                <small class="text-muted">Requisitos:</small>
+                {% for req in tarea_seleccionada.requisitos.all %}
+                <span class="badge bg-secondary">{{ req.nombre }}</span>
+                {% empty %}
+                <span class="badge bg-light text-dark border">Sin requisitos técnicos</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <h2><i class="bi bi-calendar-check me-2"></i>Consultar Disponibilidad</h2>
+        {% endif %}
+    </div>
+
+    <div class="card shadow-sm mb-4 bg-light">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                {% if tarea_seleccionada %}
+                <input type="hidden" name="tarea_id" value="{{ tarea_seleccionada.id }}">
+                {% endif %}
+
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold">Perfil / Cargo</label>
+                    <select name="perfil_id" class="form-select">
+                        <option value="">-- Todos --</option>
+                        {% for p in perfiles %}
+                        <option value="{{ p.id }}" {% if filtros.perfil|add:"0" == p.id %}selected{% endif %}>
+                            {{ p.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold">Desde</label>
+                    <input type="date" name="fecha_inicio" class="form-control" value="{{ filtros.fecha_inicio }}" required>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold">Hasta</label>
+                    <input type="date" name="fecha_fin" class="form-control" value="{{ filtros.fecha_fin }}" required>
+                </div>
+
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search me-2"></i>Buscar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if mensaje %}
+    <div class="alert alert-warning text-center">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ mensaje }}
+    </div>
+    {% endif %}
+
+    {% if candidatos %}
+    
+    <h5 class="mb-3 text-muted">
+        {% if tarea_seleccionada %}
+            Resultados ordenados por compatibilidad:
+        {% else %}
+            Personal encontrado (Estado de agenda):
+        {% endif %}
+    </h5>
+
+    <div class="row">
+        {% for c in candidatos %}
+        <div class="col-md-6 mb-3">
+            <div class="card shadow-sm h-100 {% if tarea_seleccionada %}{% if c.match >= 80 %}border-success{% elif c.match >= 50 %}border-warning{% else %}border-light{% endif %}{% endif %}">
+                <div class="card-body">
+
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <h5 class="mb-0 d-inline">{{ c.perfil.nombre }}</h5>
+
+                            {% if c.ocupado %}
+                            <span class="badge bg-danger ms-2" title="Tiene tareas en estas fechas">
+                                <i class="bi bi-calendar-x"></i> Ocupado
+                            </span>
+                            {% else %}
+                            <span class="badge bg-success ms-2">
+                                <i class="bi bi-check-circle"></i> Libre
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        {% if tarea_seleccionada %}
+                        <h4 class="{% if c.match >= 80 %}text-success{% elif c.match >= 50 %}text-warning{% else %}text-muted{% endif %} fw-bold">
+                            {{ c.match }}%
+                        </h4>
+                        {% endif %}
+                    </div>
+                    
+                    <p class="text-muted small mb-2">{{ c.perfil.cargo }}</p>
+
+                    {% if tarea_seleccionada %}
+                        <div class="progress mb-3" style="height: 8px;">
+                            <div class="progress-bar {% if c.match >= 80 %}bg-success{% elif c.match >= 50 %}bg-warning{% else %}bg-secondary{% endif %}"
+                                role="progressbar" style="width: {{ c.match }}%"></div>
+                        </div>
+
+                        {% if c.detalles %}
+                        <div class="accordion mb-3" id="acc{{ c.perfil.id }}">
+                            <div class="accordion-item border-0">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed py-1 bg-white small text-muted" type="button"
+                                        data-bs-toggle="collapse" data-bs-target="#collapse{{ c.perfil.id }}">
+                                        Ver detalle de habilidades
+                                    </button>
+                                </h2>
+                                <div id="collapse{{ c.perfil.id }}" class="accordion-collapse collapse"
+                                    data-bs-parent="#acc{{ c.perfil.id }}">
+                                    <div class="accordion-body p-0 pt-2">
+                                        <ul class="list-group list-group-flush small">
+                                            {% for det in c.detalles %}
+                                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                                <span>
+                                                    {% if det.cumple %}
+                                                    <i class="bi bi-check-circle-fill text-success me-1"></i>
+                                                    {% else %}
+                                                    <i class="bi bi-x-circle-fill text-danger me-1"></i>
+                                                    {% endif %}
+                                                    {{ det.skill }}
+                                                </span>
+                                                <span class="badge bg-light text-dark">{{ det.nivel }}</span>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+
+                    <div class="mt-3">
+                        {% if tarea_seleccionada %}
+                            <div class="d-grid">
+                                {% if c.ocupado %}
+                                    <div class="alert alert-secondary p-2 mb-0 text-center small">
+                                        <i class="bi bi-lock-fill"></i> <strong>Disponible el: {{ c.fecha_liberacion|date:"d M Y" }}</strong><br>
+                                        <span class="text-muted fst-italic">Actualmente en: {{ c.tarea_actual|truncatechars:30 }}</span>
+                                    </div>
+                                {% else %}
+                                    <a href="{% url 'asignar_recurso' tarea_seleccionada.id c.perfil.id %}" class="btn btn-primary btn-sm">
+                                        <i class="bi bi-check-lg me-1"></i> Asignar Ahora
+                                    </a>
+                                {% endif %}
+                            </div>
+
+                        {% else %}
+                            <div class="d-grid gap-2">
+                                {% if c.ocupado %}
+                                    <div class="bg-light border rounded p-2 text-center mb-2">
+                                        <small class="text-danger fw-bold"><i class="bi bi-clock-history me-1"></i>Ocupado hasta:</small><br>
+                                        
+                                        <span class="fs-6 fw-bold text-dark">{{ c.fecha_liberacion|date:"d M Y" }}</span>
+                                        
+                                        <br>
+                                        <small class="text-muted fst-italic">Tarea: {{ c.tarea_actual|truncatechars:25 }}</small>
+                                    </div>
+                                    
+                                    <a href="/admin/proyectos/tarea/add/" target="_blank" class="btn btn-outline-secondary btn-sm" 
+                                       title="Crear una tarea futura para este recurso">
+                                        <i class="bi bi-calendar-plus me-1"></i> Programar Futuro
+                                    </a>
+
+                                {% else %}
+                                    <div class="bg-success bg-opacity-10 border border-success rounded p-2 text-center mb-2">
+                                        <small class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i>¡Listo para trabajar!</small>
+                                    </div>
+
+                                    <a href="/admin/proyectos/tarea/add/" target="_blank" class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-plus-circle me-1"></i> Asignar Nueva Tarea
+                                    </a>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

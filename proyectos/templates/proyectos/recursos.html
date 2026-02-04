@@ -1,0 +1,81 @@
+{% extends 'proyectos/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-people-fill me-2"></i>Estado del Personal</h2>
+    </div>
+
+    <div class="row g-4">
+        {% for item in lista_recursos %}
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm {% if item.estado == 'Disponible' %}border-success{% else %}border-warning{% endif %}">
+                
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{{ item.perfil.nombre }}</h5>
+                    {% if item.estado == 'Disponible' %}
+                        <span class="badge bg-success">Disponible</span>
+                    {% else %}
+                        <span class="badge bg-warning text-dark">Ocupado</span>
+                    {% endif %}
+                </div>
+
+                <div class="card-body">
+                    <p class="text-muted small mb-2"><i class="bi bi-briefcase me-1"></i> {{ item.perfil.cargo }}</p>
+                    <hr>
+
+                    {# CASO 1: ESTÁ OCUPADO HOY (Tiene tareas activas en este rango de fechas) #}
+                    {% if item.estado == 'Ocupado' %}
+                        <h6 class="text-warning small fw-bold"><i class="bi bi-play-circle-fill me-1"></i>Trabajando ahora en:</h6>
+                        <ul class="list-group list-group-flush list-group-numbered">
+                            {% for tarea in item.tareas_activas %}
+                            <li class="list-group-item px-0 py-1 border-0 small">
+                                <strong>{{ tarea.proyecto.nombre }}</strong>
+                                <br>
+                                <span class="text-muted ms-3">
+                                    ↳ {{ tarea.nombre }} ({{ tarea.progreso }}%)
+                                    <span class="badge bg-light text-dark border ms-1">Fin: {{ tarea.fecha_fin|date:"d M" }}</span>
+                                </span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+
+                    {# CASO 2: ESTÁ DISPONIBLE HOY #}
+                    {% else %}
+                        
+                        {# Sub-caso 2A: Está libre hoy, PERO tiene tareas programadas pronto #}
+                        {% if item.tareas_futuras %}
+                            <div class="alert alert-success py-2 mb-2 small">
+                                <i class="bi bi-check-circle me-1"></i> Disponible hoy.
+                            </div>
+                            
+                            <h6 class="text-muted small fw-bold mt-3"><i class="bi bi-calendar-event me-1"></i>Próximas asignaciones:</h6>
+                             <ul class="list-group list-group-flush">
+                                {% for tarea in item.tareas_futuras %}
+                                <li class="list-group-item px-0 py-1 border-0 small text-muted">
+                                    <i class="bi bi-arrow-right-short me-1"></i>
+                                    <strong>{{ tarea.proyecto.nombre }}</strong>
+                                    <br>
+                                    <span class="ms-3">↳ {{ tarea.nombre }}</span>
+                                    <span class="badge bg-light text-secondary border ms-1">Inicio: {{ tarea.fecha_inicio|date:"d M" }}</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+
+                        {# Sub-caso 2B: Es libre como el viento (sin tareas futuras próximas) #}
+                        {% else %}
+                            <div class="alert alert-success mt-3 py-3 text-center">
+                                <h4><i class="bi bi-person-check-fill text-success"></i></h4>
+                                <strong>¡Totalmente Libre!</strong><br>
+                                <span class="small">Listo para asignar nuevos proyectos.</span>
+                            </div>
+                        {% endif %}
+
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
