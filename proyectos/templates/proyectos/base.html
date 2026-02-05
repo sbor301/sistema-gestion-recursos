@@ -6,24 +6,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RMS - Indutronica</title>
-    <link rel="shortcut icon" type="image/png" href="{% static 'img/favicon.png' %}"/>
+    <link rel="shortcut icon" type="image/png" href="{% static 'img/favicon.png' %}" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.css">
-    
+
     <style>
-    
         body {
-            padding-top: 100px; 
+            padding-top: 100px;
         }
-        
+
         .navbar {
             z-index: 1030;
         }
 
         @media print {
-            body { padding-top: 0; }
-            .navbar, .no-print { display: none !important; } 
+            body {
+                padding-top: 0;
+            }
+
+            .navbar,
+            .no-print {
+                display: none !important;
+            }
         }
     </style>
 </head>
@@ -39,10 +44,10 @@
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
         </button>
-        
+
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto align-items-center">
-                
+
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'index' %}"><i class="bi bi-speedometer2"></i> Dashboard</a>
                 </li>
@@ -52,7 +57,8 @@
                 </li>
 
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'lista_proyectos' %}"><i class="bi bi-list-check"></i> Proyectos</a>
+                    <a class="nav-link" href="{% url 'lista_proyectos' %}"><i class="bi bi-list-check"></i>
+                        Proyectos</a>
                 </li>
 
                 <li class="nav-item">
@@ -60,7 +66,8 @@
                 </li>
 
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'recursos' %}"><i class="bi bi-people-fill"></i> Estado del Personal</a>
+                    <a class="nav-link" href="{% url 'recursos' %}"><i class="bi bi-people-fill"></i> Estado del
+                        Personal</a>
                 </li>
 
                 <li class="nav-item">
@@ -68,7 +75,7 @@
                         <i class="bi bi-file-earmark-bar-graph"></i> Reportes
                     </a>
                 </li>
-                
+
                 <li class="nav-item border-start ms-2 ps-2">
                     <a class="nav-link text-warning" href="/admin" target="_blank" title="Configuración">
                         <i class="bi bi-gear-fill"></i> Admin Panel
@@ -77,19 +84,28 @@
 
                 {% if user.is_authenticated %}
                 <li class="nav-item dropdown ms-3">
-                    <a class="nav-link dropdown-toggle active fw-bold d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
+                    <a class="nav-link dropdown-toggle active fw-bold d-flex align-items-center" href="#" role="button"
+                        data-bs-toggle="dropdown">
                         <i class="bi bi-person-circle me-2 fs-5"></i> {{ user.username|title }}
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end shadow">
                         <li><span class="dropdown-item-text text-muted small">Sesión iniciada</span></li>
-                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+
+                        <li>
+                            <a class="dropdown-item" href="{% url 'centro_importacion' %}">
+                                <i class="bi bi-database-up me-2 text-primary"></i>Carga Masiva
+                            </a>
+                        </li>
                         
                         <li>
                             <a class="dropdown-item" href="/admin/password_change/" target="_blank">
                                 <i class="bi bi-key me-2"></i>Cambiar Contraseña
                             </a>
                         </li>
-                        
+
                         <li>
                             <form method="post" action="{% url 'logout' %}">
                                 {% csrf_token %}
@@ -102,11 +118,12 @@
                 </li>
                 {% else %}
                 <li class="nav-item ms-3">
-                    <a class="btn btn-outline-light btn-sm" href="/admin/">Iniciar Sesión</a>
+                    <a class="btn btn-outline-light btn-sm" href="/login/">Iniciar Sesión</a>
                 </li>
                 {% endif %}
 
-            </ul> </div>
+            </ul>
+        </div>
     </nav>
     {% endblock %}
 
@@ -129,4 +146,5 @@
     {% block scripts %}
     {% endblock %}
 </body>
+
 </html>

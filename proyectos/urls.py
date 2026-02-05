@@ -10,7 +10,9 @@ urlpatterns = [
     path('recursos/', views.ver_recursos, name='recursos'),
     path('proyectos-lista/', views.lista_proyectos, name='lista_proyectos'),
     path('reporte/', views.reporte_recurso, name='reporte_recurso'),
-    
+    path('importar/', views.centro_importacion, name='centro_importacion'),
+    path('importar/recursos/', views.importar_recursos_excel, name='importar_recursos_excel'),
+    path('importar/plantilla-recursos/', views.descargar_plantilla_recursos, name='descargar_plantilla_recursos'),
     
     
     # Funcionalidades / API 

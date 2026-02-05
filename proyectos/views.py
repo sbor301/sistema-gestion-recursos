@@ -14,6 +14,7 @@ from datetime import date
 from django.http import HttpResponse
 import openpyxl
 from django.contrib.auth.decorators import login_required
+from io import BytesIO
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 import json
 
@@ -423,3 +424,91 @@ def reporte_recurso(request):
     }
 
     return render(request, 'proyectos/reporte_recurso.html', contexto)
+
+@login_required
+def centro_importacion(request):
+    # Esta vista solo renderiza la pantalla bonita con las opciones
+    return render(request, 'proyectos/importar_datos.html')
+
+@login_required
+def importar_recursos_excel(request):
+    if request.method == 'POST' and request.FILES.get('archivo_excel'):
+        excel_file = request.FILES['archivo_excel']
+        
+        try:
+            wb = openpyxl.load_workbook(excel_file)
+            ws = wb.active
+            
+            creados = 0
+            actualizados = 0
+            errores = []
+
+            # Iteramos desde la fila 2 (saltando encabezados)
+            for index, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+                try:
+                    # ASUMIMOS ESTE ORDEN: A=Nombre, B=Cargo, C=Correo
+                    nombre = row[0]
+                    cargo = row[1]
+                    correo = row[2]
+
+                    if not nombre: # Si la fila está vacía, saltar
+                        continue
+
+                    # Lógica de guardar
+                    obj, created = Recurso.objects.update_or_create(
+                        nombre=nombre,
+                        defaults={
+                            'cargo': cargo if cargo else "Sin cargo",
+                            'correo': correo if correo else "",
+                            'activo': True
+                        }
+                    )
+                    
+                    if created: creados += 1
+                    else: actualizados += 1
+                    
+                except Exception as e:
+                    errores.append(f"Fila {index}: {str(e)}")
+
+            # Feedback al usuario
+            if creados > 0 or actualizados > 0:
+                messages.success(request, f"Proceso finalizado: {creados} creados, {actualizados} actualizados.")
+            
+            if errores:
+                messages.warning(request, f"Hubo errores en {len(errores)} filas. Revisa el formato.")
+
+        except Exception as e:
+            messages.error(request, f"Error crítico al leer el archivo: {str(e)}")
+            
+    return redirect('centro_importacion')
+
+@login_required
+def descargar_plantilla_recursos(request):
+    # Generamos un Excel en memoria
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Plantilla Recursos"
+    
+    # Encabezados
+    headers = ['Nombre Completo', 'Cargo/Perfil', 'Correo Electrónico']
+    ws.append(headers)
+    
+    # Ejemplo
+    ws.append(['Juan Perez', 'Ingeniero Junior', 'juan@ejemplo.com'])
+    
+    # Ajustar ancho de columnas
+    ws.column_dimensions['A'].width = 30
+    ws.column_dimensions['B'].width = 25
+    ws.column_dimensions['C'].width = 30
+
+    # --- CORRECCIÓN AQUÍ: Usamos BytesIO ---
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0) # Regresamos al inicio del archivo en memoria
+    
+    response = HttpResponse(
+        content=buffer.getvalue(), 
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename=Plantilla_Recursos.xlsx'
+    return response
