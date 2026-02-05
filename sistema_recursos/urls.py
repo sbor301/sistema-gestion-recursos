@@ -1,15 +1,15 @@
 """
 URL configuration for sistema_recursos project.
 """
+from django.contrib.auth import views as auth_views
 from django.contrib import admin
 from django.urls import path, include 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    
-    # Esta es la ÚNICA línea necesaria para tu app.
-    # Dice: "Cualquier cosa que llegue (incluso vacía), mándala a proyectos.urls"
     path('', include('proyectos.urls')), 
+    path('accounts/login/', auth_views.LoginView.as_view(), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
 ]
 
 # Personalización del Admin Panel (Esto déjalo, está perfecto)

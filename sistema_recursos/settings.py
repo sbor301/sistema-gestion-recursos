@@ -90,13 +90,6 @@ DATABASES = {
     }
 }
 
-#DATABASES = {
-#    'default': {
-#        'ENGINE': 'django.db.backends.sqlite3',
-#        'NAME': BASE_DIR / 'db.sqlite3',
-#    }
-#}
-
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -137,3 +130,12 @@ STATIC_URL = 'static/'
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
 ]
+
+# A dónde ir si no estás logueado y tratas de entrar a una zona protegida
+LOGIN_URL = 'login' 
+
+# A dónde ir después de loguearte exitosamente
+LOGIN_REDIRECT_URL = '/' 
+
+# A dónde ir después de cerrar sesión
+LOGOUT_REDIRECT_URL = 'login'

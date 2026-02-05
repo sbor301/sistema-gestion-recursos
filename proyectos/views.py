@@ -1,4 +1,5 @@
 from django.shortcuts import render, get_object_or_404
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from django.core.serializers.json import DjangoJSONEncoder
 from .models import Tarea, Proyecto
@@ -12,9 +13,12 @@ from django.utils import timezone
 from datetime import date
 from django.http import HttpResponse
 import openpyxl
+from django.contrib.auth.decorators import login_required
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 import json
 
+@login_required
+@never_cache
 def vista_gantt(request):
     # 1. Capturar filtros de la URL
     proyecto_id = request.GET.get('proyecto')
@@ -58,6 +62,7 @@ def vista_gantt(request):
     
     return render(request, 'proyectos/gantt.html', contexto)
 
+@login_required
 def buscar_disponibilidad(request):
     # ---INICIALIZACIÓN ---
     candidatos_finales = []
@@ -164,7 +169,7 @@ def buscar_disponibilidad(request):
     }
     return render(request, 'proyectos/buscar.html', contexto)
 
-# 2. PONEMOS @require_POST (Para que solo acepte envíos de datos, no visitas por navegador)
+@login_required
 @require_POST
 def actualizar_tarea_api(request):
     # El resto del código queda IGUAL
@@ -185,6 +190,7 @@ def actualizar_tarea_api(request):
     except Exception as e:
         return JsonResponse({'status': 'error', 'mensaje': str(e)}, status=400)
 
+@login_required
 def asignar_recurso(request, tarea_id, recurso_id):
     tarea = Tarea.objects.get(id=tarea_id)
     recurso = Recurso.objects.get(id=recurso_id)
@@ -197,6 +203,8 @@ def asignar_recurso(request, tarea_id, recurso_id):
     # Nos devuelve al Gantt para ver el cambio
     return redirect('gantt')
 
+@login_required
+@never_cache
 def index(request):
     # Contadores para el Dashboard
     total_proyectos = Proyecto.objects.count()
@@ -232,6 +240,7 @@ def index(request):
     
     return render(request, 'proyectos/index.html', contexto)
 
+@login_required
 def ver_recursos(request):
     hoy = timezone.now().date()
     recursos = Recurso.objects.all()
@@ -268,6 +277,7 @@ def ver_recursos(request):
     contexto = {'lista_recursos': info_recursos}
     return render(request, 'proyectos/recursos.html', contexto)
 
+@login_required
 def lista_proyectos(request):
     # Traemos proyectos con sus tareas pre-cargadas para optimizar velocidad
     proyectos = Proyecto.objects.prefetch_related('tareas__asignado_a').all()
@@ -283,6 +293,7 @@ def lista_proyectos(request):
 
     return render(request, 'proyectos/lista_proyectos.html', {'proyectos': proyectos})
 
+@login_required
 def reporte_recurso(request):
     recursos = Recurso.objects.all()
     

@@ -10,7 +10,8 @@ urlpatterns = [
     path('recursos/', views.ver_recursos, name='recursos'),
     path('proyectos-lista/', views.lista_proyectos, name='lista_proyectos'),
     path('reporte/', views.reporte_recurso, name='reporte_recurso'),
-    path('logout/', auth_views.LogoutView.as_view(next_page='/admin/'), name='logout'),
+    
+    
     
     # Funcionalidades / API 
     path('api/actualizar_tarea/', views.actualizar_tarea_api, name='actualizar_tarea_api'),

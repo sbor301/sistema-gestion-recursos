@@ -1,6 +1,10 @@
 # --- Archivos de Base de Datos ---
 *.sqlite3
 db.sqlite3
+
+# Backups y datos
+*.json
+backups/
 datadump.json
 
 # --- Archivos compilados de Python---
