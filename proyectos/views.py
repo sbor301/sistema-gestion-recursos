@@ -3,7 +3,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from django.core.serializers.json import DjangoJSONEncoder
 from .models import Tarea, Proyecto
-from rrhh.models import Recurso, Perfil, Habilidad
+from rrhh.models import Recurso, Perfil, Habilidad, Conocimiento
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import redirect
@@ -43,7 +43,7 @@ def vista_gantt(request):
             'start': t.fecha_inicio.strftime("%Y-%m-%d"),
             'end': t.fecha_fin.strftime("%Y-%m-%d"),
             'progress': t.progreso,
-            # Usamos colores diferentes según el proyecto (truco visual)
+            # Usamos colores diferentes según el proyecto 
             'custom_class': f'bar-project-{t.proyecto.id % 5}', 
             # Información extra para el tooltip
             'proyecto': t.proyecto.nombre,
@@ -63,6 +63,7 @@ def vista_gantt(request):
     
     return render(request, 'proyectos/gantt.html', contexto)
 
+@never_cache
 @login_required
 def buscar_disponibilidad(request):
     # ---INICIALIZACIÓN ---
@@ -170,10 +171,10 @@ def buscar_disponibilidad(request):
     }
     return render(request, 'proyectos/buscar.html', contexto)
 
+@never_cache
 @login_required
 @require_POST
 def actualizar_tarea_api(request):
-    # El resto del código queda IGUAL
     try:
         data = json.loads(request.body)
         tarea_id = data.get('id')
@@ -192,6 +193,7 @@ def actualizar_tarea_api(request):
         return JsonResponse({'status': 'error', 'mensaje': str(e)}, status=400)
 
 @login_required
+@never_cache
 def asignar_recurso(request, tarea_id, recurso_id):
     tarea = Tarea.objects.get(id=tarea_id)
     recurso = Recurso.objects.get(id=recurso_id)
@@ -212,12 +214,11 @@ def index(request):
     total_tareas = Tarea.objects.count()
     total_recursos = Recurso.objects.count()
     
-    # Calculamos progreso promedio (opcional)
-    # Esto es solo un ejemplo, puedes simplificarlo
+    # Calculamos progreso promedio 
     tareas_completadas = Tarea.objects.filter(progreso=100).count()
 
     # --- Agrupar por Centro de Costo ---
-    # Esto crea una lista como: [{'centro_costo': 'TI', 'total': 5}, {'centro_costo': 'Obras', 'total': 2}]
+    # Esto crea una lista 
     centros_unicos = Proyecto.objects.values_list('centro_costo', flat=True).distinct()
 
     datos_agrupados = []
@@ -242,6 +243,7 @@ def index(request):
     return render(request, 'proyectos/index.html', contexto)
 
 @login_required
+@never_cache
 def ver_recursos(request):
     hoy = timezone.now().date()
     recursos = Recurso.objects.all()
@@ -295,6 +297,7 @@ def lista_proyectos(request):
     return render(request, 'proyectos/lista_proyectos.html', {'proyectos': proyectos})
 
 @login_required
+@never_cache
 def reporte_recurso(request):
     recursos = Recurso.objects.all()
     
@@ -308,11 +311,11 @@ def reporte_recurso(request):
     if recurso_id:
         recursos_filtrados = Recurso.objects.filter(id=recurso_id)
     else:
-        # Si no selecciona nada, son TODOS (pero solo si presionó Generar o Excel)
+        # Si no selecciona nada, son TODOS 
         if request.GET: 
             recursos_filtrados = Recurso.objects.all()
         else:
-            recursos_filtrados = [] # Al entrar por primera vez, no mostramos nada
+            recursos_filtrados = [] 
 
     datos_reporte = []
 
@@ -342,8 +345,6 @@ def reporte_recurso(request):
             }
         })
 
-    # ... (código anterior en views.py) ...
-
     # --- LÓGICA DE EXCEL ---
     if exportar_excel and datos_reporte:
         wb = openpyxl.Workbook()
@@ -367,13 +368,12 @@ def reporte_recurso(request):
         for data in datos_reporte:
             r_nombre = data['recurso'].nombre
             
-            # --- CORRECCIÓN AQUÍ: DETECCIÓN SEGURA DEL CARGO ---
             # Intentamos obtener 'cargo', si no existe, intentamos 'perfil', si no, ponemos 'N/A'
             try:
                 r_cargo = data['recurso'].cargo
             except AttributeError:
                 try:
-                    # Si tu modelo usa 'perfil' en vez de cargo
+                    
                     r_cargo = str(data['recurso'].perfil) 
                 except AttributeError:
                     r_cargo = "No especificado"
@@ -426,11 +426,13 @@ def reporte_recurso(request):
     return render(request, 'proyectos/reporte_recurso.html', contexto)
 
 @login_required
+@never_cache
 def centro_importacion(request):
     # Esta vista solo renderiza la pantalla bonita con las opciones
     return render(request, 'proyectos/importar_datos.html')
 
 @login_required
+@never_cache
 def importar_recursos_excel(request):
     if request.method == 'POST' and request.FILES.get('archivo_excel'):
         excel_file = request.FILES['archivo_excel']
@@ -443,19 +445,20 @@ def importar_recursos_excel(request):
             actualizados = 0
             errores = []
 
-            # Iteramos desde la fila 2 (saltando encabezados)
+            # Iteramos desde la fila 2
             for index, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
                 try:
-                    # ASUMIMOS ESTE ORDEN: A=Nombre, B=Cargo, C=Correo
+                    # 1. LECTURA DE COLUMNAS (A, B, C, D)
                     nombre = row[0]
                     cargo = row[1]
                     correo = row[2]
+                    habilidades_str = row[3] 
 
-                    if not nombre: # Si la fila está vacía, saltar
+                    if not nombre: 
                         continue
 
-                    # Lógica de guardar
-                    obj, created = Recurso.objects.update_or_create(
+                    # 2. CREAR O ACTUALIZAR EL RECURSO
+                    recurso, created = Recurso.objects.update_or_create(
                         nombre=nombre,
                         defaults={
                             'cargo': cargo if cargo else "Sin cargo",
@@ -466,16 +469,52 @@ def importar_recursos_excel(request):
                     
                     if created: creados += 1
                     else: actualizados += 1
+
+                    # 3. PROCESAR HABILIDADES 
+                    # Formato esperado: "Python:5, Java:3, Excel:4"
+                    if habilidades_str:
+                        # Separamos por comas
+                        lista_skills = str(habilidades_str).split(',')
+                        
+                        for skill_raw in lista_skills:
+                            # Limpiamos espacios 
+                            skill_data = skill_raw.strip()
+                            if not skill_data: continue
+
+                            # Separamos Nombre y Nivel por los dos puntos ":"
+                            if ':' in skill_data:
+                                partes = skill_data.split(':')
+                                nombre_skill = partes[0].strip()
+                                try:
+                                    nivel_skill = int(partes[1].strip())
+                                except ValueError:
+                                    nivel_skill = 1 # Si ponen "Python:A", ponemos 1 por defecto
+                            else:
+                                # Si solo ponen "Python" sin nivel, asumimos nivel 1
+                                nombre_skill = skill_data
+                                nivel_skill = 1
+
+                            # A. Buscamos o creamos el Conocimiento en el catálogo general
+                            conocimiento_obj, _ = Conocimiento.objects.get_or_create(
+                                nombre=nombre_skill
+                            )
+
+                            # B. Asignamos ese conocimiento al Recurso (Crear Habilidad)
+                            Habilidad.objects.update_or_create(
+                                recurso=recurso,
+                                conocimiento=conocimiento_obj,
+                                defaults={'nivel': nivel_skill}
+                            )
                     
                 except Exception as e:
                     errores.append(f"Fila {index}: {str(e)}")
 
-            # Feedback al usuario
-            if creados > 0 or actualizados > 0:
-                messages.success(request, f"Proceso finalizado: {creados} creados, {actualizados} actualizados.")
-            
+            # Feedback
+            msg_final = f"Proceso finalizado: {creados} recursos creados, {actualizados} actualizados."
             if errores:
-                messages.warning(request, f"Hubo errores en {len(errores)} filas. Revisa el formato.")
+                messages.warning(request, f"{msg_final} Hubo errores en {len(errores)} filas.")
+            else:
+                messages.success(request, msg_final)
 
         except Exception as e:
             messages.error(request, f"Error crítico al leer el archivo: {str(e)}")
@@ -483,28 +522,38 @@ def importar_recursos_excel(request):
     return redirect('centro_importacion')
 
 @login_required
+@never_cache
 def descargar_plantilla_recursos(request):
-    # Generamos un Excel en memoria
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Plantilla Recursos"
     
-    # Encabezados
-    headers = ['Nombre Completo', 'Cargo/Perfil', 'Correo Electrónico']
+    # --- ENCABEZADOS ---
+    headers = [
+        'Nombre Completo', 
+        'Cargo/Perfil', 
+        'Correo Electrónico', 
+        'Habilidades (Formato: Skill:1-5, Skill:1-5)' 
+    ]
     ws.append(headers)
     
-    # Ejemplo
-    ws.append(['Juan Perez', 'Ingeniero Junior', 'juan@ejemplo.com'])
+    # --- EJEMPLO ---
+    ws.append([
+        'Juan Perez', 
+        'Desarrollador Senior', 
+        'juan@indutronica.com', 
+        'Python:5, Django:4, SQL:3, Liderazgo:5' 
+    ])
     
-    # Ajustar ancho de columnas
+    # Ajustar ancho de columnas para que se lea bien
     ws.column_dimensions['A'].width = 30
     ws.column_dimensions['B'].width = 25
     ws.column_dimensions['C'].width = 30
+    ws.column_dimensions['D'].width = 50 
 
-    # --- CORRECCIÓN AQUÍ: Usamos BytesIO ---
     buffer = BytesIO()
     wb.save(buffer)
-    buffer.seek(0) # Regresamos al inicio del archivo en memoria
+    buffer.seek(0)
     
     response = HttpResponse(
         content=buffer.getvalue(), 

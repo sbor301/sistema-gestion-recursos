@@ -20,10 +20,9 @@ class HabilidadInline(admin.TabularInline):
 # 4. Configuración del Recurso (Empleado) + La Matriz
 @admin.register(Recurso)
 class RecursoAdmin(admin.ModelAdmin):
-    # Tus columnas originales
+    
     list_display = ('nombre', 'perfil', 'email', 'activo') 
     list_filter = ('perfil', 'activo')
     search_fields = ('nombre', 'email')
     
-    # ESTA LÍNEA ES LA CLAVE: Inserta la tabla de habilidades aquí
     inlines = [HabilidadInline]

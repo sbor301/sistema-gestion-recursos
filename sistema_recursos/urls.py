@@ -12,7 +12,7 @@ urlpatterns = [
     path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
 ]
 
-# Personalización del Admin Panel (Esto déjalo, está perfecto)
+# Personalización del Admin Panel 
 admin.site.site_header = "Administración RMS"
 admin.site.site_title = "Portal RRHH"
 admin.site.index_title = "Bienvenido al Sistema de Gestión"

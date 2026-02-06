@@ -131,11 +131,11 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
 ]
 
-# A dónde ir si no estás logueado y tratas de entrar a una zona protegida
+# Ruta si no estás logueado y tratas de entrar a una zona protegida
 LOGIN_URL = 'login' 
 
-# A dónde ir después de loguearte exitosamente
+# Ruta después de loguearte 
 LOGIN_REDIRECT_URL = '/' 
 
-# A dónde ir después de cerrar sesión
+# Ruta después de cerrar sesión
 LOGOUT_REDIRECT_URL = 'login'

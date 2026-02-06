@@ -11,7 +11,7 @@ class ProyectoAdmin(admin.ModelAdmin):
 # 2. Configuración del Admin de TAREAS
 @admin.register(Tarea)
 class TareaAdmin(admin.ModelAdmin):
-    # A. LIST_DISPLAY: Usamos funciones para "traer" el dato del Proyecto
+    # A. LIST_DISPLAY: funciones para traer el dato del Proyecto
     list_display = ('nombre', 'ver_unidad_negocio', 'ver_centro_costo', 'proyecto', 'asignado_a', 'fecha_inicio', 'fecha_fin', 'progreso')
     
     # B. LIST_FILTER
