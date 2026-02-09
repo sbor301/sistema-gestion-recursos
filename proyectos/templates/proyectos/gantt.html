@@ -1,38 +1,25 @@
 {% extends 'proyectos/base.html' %}
+{% load static %}
 
 {% block content %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.min.js"></script>
 
-<style>
-    /* Personalización de colores de las barras */
-    .bar-project-0 .bar { fill: #3b82f6; } /* Azul */
-    .bar-project-1 .bar { fill: #10b981; } /* Verde */
-    .bar-project-2 .bar { fill: #f59e0b; } /* Naranja */
-    .bar-project-3 .bar { fill: #ef4444; } /* Rojo */
-    .bar-project-4 .bar { fill: #8b5cf6; } /* Morado */
-    
-    /* Ajustes para que se vea más limpio */
-    .gantt .bar-label { fill: #fff; font-weight: bold; }
-    .gantt-container { overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-    
-    /* Estilo del Popup personalizado */
-    .gantt-popup-wrapper { z-index: 1000; }
-</style>
+<link rel="stylesheet" href="{% static 'css/gantt.css' %}">
+<script src="{% static 'js/gantt_logic.js' %}"></script>
 
 <div class="container-fluid mt-4">
     
-    <div class="card shadow-sm mb-4">
+    <div class="card shadow-sm mb-4 border-0">
         <div class="card-body py-3">
-            <form method="get" class="row g-3 align-items-end">
+            <form method="get" class="row g-3 align-items-center">
                 <div class="col-md-3">
-                    <h3 class="mb-0 text-secondary"><i class="bi bi-bar-chart-steps me-2"></i>Cronograma</h3>
+                    <h4 class="mb-0 text-dark fw-bold"><i class="bi bi-kanban me-2 text-primary"></i>Cronograma</h4>
                 </div>
                 
                 <div class="col-md-3">
-                    <label class="small text-muted mb-1">Filtrar por Proyecto</label>
-                    <select name="proyecto" class="form-select form-select-sm" onchange="this.form.submit()">
-                        <option value="">Todos los proyectos</option>
+                    <select name="proyecto" class="form-select form-select-sm bg-light border-0" onchange="this.form.submit()">
+                        <option value="">📂 Todos los proyectos</option>
                         {% for p in proyectos %}
                         <option value="{{ p.id }}" {% if filtros.proyecto|add:"0" == p.id %}selected{% endif %}>
                             {{ p.nombre }}
@@ -42,9 +29,8 @@
                 </div>
 
                 <div class="col-md-3">
-                    <label class="small text-muted mb-1">Filtrar por Recurso</label>
-                    <select name="recurso" class="form-select form-select-sm" onchange="this.form.submit()">
-                        <option value="">Todo el personal</option>
+                    <select name="recurso" class="form-select form-select-sm bg-light border-0" onchange="this.form.submit()">
+                        <option value="">👷 Todo el personal</option>
                         {% for r in recursos %}
                         <option value="{{ r.id }}" {% if filtros.recurso|add:"0" == r.id %}selected{% endif %}>
                             {{ r.nombre }}
@@ -54,10 +40,10 @@
                 </div>
 
                 <div class="col-md-3 text-end">
-                    <div class="btn-group btn-group-sm" role="group">
-                        <button type="button" class="btn btn-outline-primary active" onclick="cambiarVista('Day')">Día</button>
-                        <button type="button" class="btn btn-outline-primary" onclick="cambiarVista('Week')">Semana</button>
-                        <button type="button" class="btn btn-outline-primary" onclick="cambiarVista('Month')">Mes</button>
+                    <div class="btn-group btn-group-sm btn-group-vista" role="group">
+                        <button type="button" class="btn btn-outline-secondary active" onclick="cambiarVista('Day', this)">Día</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="cambiarVista('Week', this)">Semana</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="cambiarVista('Month', this)">Mes</button>
                     </div>
                 </div>
             </form>
@@ -67,117 +53,26 @@
     <div class="gantt-target"></div>
     
     {% if not gantt_data|length > 0 %} 
-    <div class="alert alert-info text-center mt-5">
-        No hay tareas para mostrar con los filtros seleccionados.
+    <div class="text-center mt-5 py-5 text-muted">
+        <i class="bi bi-clipboard-x display-4 opacity-50"></i>
+        <p class="mt-3">No hay tareas para mostrar con los filtros seleccionados.</p>
     </div>
     {% endif %}
 
 </div>
 
 <script>
-    // 1. FUNCIÓN PARA OBTENER EL TOKEN CSRF DE LAS COOKIES (SEGURIDAD)
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-
-    // 2. INICIALIZACIÓN DEL GANTT
-    var tareas = {{ gantt_data|safe }};
-
-    if (tareas.length > 0) {
-        var gantt = new Gantt(".gantt-target", tareas, {
-            header_height: 50,
-            column_width: 30,
-            step: 24,
-            view_modes: ['Quarter Day', 'Half Day', 'Day', 'Week', 'Month'],
-            bar_height: 25,
-            bar_corner_radius: 3,
-            arrow_curve: 5,
-            padding: 18,
-            view_mode: 'Day',
-            date_format: 'YYYY-MM-DD',
-            language: 'es', 
-            
-            custom_popup_html: function(task) {
-                return `
-                <div class="popover fade show bs-popover-bottom" role="tooltip" style="position: relative; width: 220px; box-shadow: 0 5px 15px rgba(0,0,0,0.2);">
-                    <div class="popover-arrow"></div>
-                    <h3 class="popover-header text-center bg-light text-dark">${task.name}</h3>
-                    <div class="popover-body">
-                        <div class="mb-2">
-                            <strong>${task.progress}%</strong> Completado<br>
-                            <span class="text-muted small">Resp: ${task.responsable}</span><br>
-                            <span class="text-primary small fw-bold">${task.proyecto}</span>
-                        </div>
-                        <div class="text-muted small mb-2 border-bottom pb-2">
-                            ${task.start} ➝ ${task.end}
-                        </div>
-                        
-                        <div class="d-grid">
-                            <a href="/buscar/?tarea_id=${task.id}" class="btn btn-sm btn-outline-info">
-                                <i class="bi bi-search me-1"></i> Buscar / Reasignar
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                `;
-            },
-
-            // 3. ACTUALIZACIÓN DE FECHAS (CON SEGURIDAD MEJORADA)
-            on_date_change: function(task, start, end) {
-                console.log("Actualizando tarea:", task.name);
-                
-                var datos = {
-                    id: task.id,
-                    start: start.toISOString().split('T')[0], // YYYY-MM-DD
-                    end: end.toISOString().split('T')[0]
-                };
-
-                // Obtenemos el token usando la función segura
-                const csrftoken = getCookie('csrftoken');
-
-                // Asegúrate de tener esta URL en tu urls.py con name='actualizar_tarea_api'
-                // Si no, usa '/api/actualizar_tarea/'
-                fetch("{% url 'actualizar_tarea_api' %}", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrftoken // Token inyectado aquí
-                    },
-                    body: JSON.stringify(datos)
-                })
-                .then(response => {
-                    if(response.ok) {
-                        console.log("Fecha actualizada correctamente");
-                    } else {
-                        alert("Error al guardar la nueva fecha.");
-                    }
-                })
-                .catch(error => console.error("Error:", error));
-            }
-        });
-
-        function cambiarVista(modo) {
-            gantt.change_view_mode(modo);
-            // Lógica visual de los botones
-            document.querySelectorAll('.btn-group .btn').forEach(btn => {
-                btn.classList.remove('active');
-                if(btn.textContent.includes(modo === 'Day' ? 'Día' : (modo === 'Week' ? 'Semana' : 'Mes'))) {
-                    btn.classList.add('active');
-                }
-            });
-        }
-    }
+    document.addEventListener('DOMContentLoaded', function() {
+        // Pasamos los datos de Django al mundo JavaScript de forma limpia
+        const tareasBackend = {{ gantt_data|safe }};
+        
+        // URL de la API generada por Django
+        // Asegúrate de tener esta ruta nombrada en tu urls.py
+        const urlApi = "{% url 'actualizar_tarea_api' %}"; 
+        
+        // Llamamos a la función que creamos en gantt_logic.js
+        iniciarGantt(tareasBackend, urlApi);
+    });
 </script>
 
 {% endblock %}

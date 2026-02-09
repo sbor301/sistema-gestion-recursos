@@ -2,6 +2,8 @@
 {% load static %}
 
 {% block content %}
+<link rel="stylesheet" href="{% static 'css/reportes.css' %}">
+
 <div class="container mt-4">
 
     <div class="card shadow-sm mb-4 no-print bg-light">
@@ -33,16 +35,12 @@
                     <button type="submit" name="exportar" value="web" class="btn btn-primary">
                         <i class="bi bi-eye"></i> Ver
                     </button>
-                    <button type="submit" name="exportar" value="excel" class="btn btn-success text-white">
-                        <i class="bi bi-file-earmark-excel"></i> Excel
-                    </button>
-                </div>
+                    </div>
             </form>
         </div>
     </div>
 
     {% if mostrar_reporte %}
-    
     <div class="text-end mb-3 no-print">
         <button onclick="window.print()" class="btn btn-secondary">
             <i class="bi bi-printer-fill me-2"></i>Imprimir PDF
@@ -159,85 +157,4 @@
     {% endif %}
 
 </div>
-
-<style>
-    /* Estilos normales (para la pantalla) */
-    .hoja-reporte {
-        transition: transform 0.2s;
-    }
-    
-    /* === ESTILOS DE IMPRESIÓN === */
-    @media print {
-        /* 1. Configuración de la hoja */
-        @page {
-            size: A4;
-            margin: 10mm;
-        }
-
-        /* 2. Ocultar interfaz */
-        body * { visibility: hidden; }
-        .no-print, nav, footer, .navbar, .btn { display: none !important; }
-
-        /* 3. Reset general para usar todo el ancho */
-        body, .container, .col-md-12 {
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            overflow: visible !important;
-        }
-
-        /* 4. Visibilidad del reporte */
-        .hoja-reporte {
-            visibility: visible;
-            position: relative;
-            left: 0;
-            top: 0;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            border: none !important;
-            box-shadow: none !important;
-            page-break-after: always;
-        }
-        .hoja-reporte * { visibility: visible; }
-
-        /* 5. Tabla sin scrollbar */
-        .table-responsive {
-            overflow: visible !important;
-            display: block !important;
-            width: 100% !important;
-        }
-        .table { width: 100% !important; }
-        
-        /* 6. Colores de fondo */
-        .badge {
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-            border: 1px solid #000; /* Borde fino para legibilidad */
-        }
-        
-        /* === 7. ARREGLO DE ESPACIADO (NUEVO) === */
-        
-        /* Restaurar el espacio dentro del cuadro gris de resumen */
-        .bg-light.p-4 {
-            padding: 20px !important;
-            margin-bottom: 40px !important; /* SEPARACIÓN GRANDE AQUÍ */
-            background-color: #f8f9fa !important;
-            -webkit-print-color-adjust: exact;
-            border: 1px solid #dee2e6; /* Borde suave para definir el área */
-        }
-        
-        /* Separación extra para el título "Detalle de Tareas" */
-        h5.border-start {
-            margin-top: 20px !important;
-            margin-bottom: 15px !important;
-        }
-
-        /* Evitar cortes feos */
-        tr, .avoid-break { page-break-inside: avoid; }
-        a { text-decoration: none !important; color: black !important; }
-    }
-</style>
-
 {% endblock %}

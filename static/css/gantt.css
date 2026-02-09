@@ -1,0 +1,37 @@
+/* static/css/gantt.css */
+
+/* --- COLORES POR PROYECTO --- */
+/* Esto permite que cada proyecto tenga un color distinto en el diagrama */
+.bar-project-0 .bar { fill: #3b82f6; } /* Azul Indutrónica */
+.bar-project-1 .bar { fill: #10b981; } /* Verde Éxito */
+.bar-project-2 .bar { fill: #f59e0b; } /* Naranja Alerta */
+.bar-project-3 .bar { fill: #ef4444; } /* Rojo Peligro */
+.bar-project-4 .bar { fill: #8b5cf6; } /* Morado */
+.bar-project-5 .bar { fill: #ec4899; } /* Rosa */
+
+/* --- AJUSTES VISUALES DE LA LIBRERÍA --- */
+.gantt .bar-label { 
+    fill: #fff; 
+    font-weight: 700; 
+    font-size: 12px;
+}
+
+.gantt-container { 
+    overflow-x: auto; 
+    background: white; 
+    border-radius: 12px; 
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05); 
+    border: 1px solid #e9ecef;
+}
+
+/* El popup debe estar por encima de todo */
+.gantt-popup-wrapper { 
+    z-index: 9999; 
+}
+
+/* Estilo personalizado del Popup (Popover de Bootstrap) */
+.custom-gantt-popover {
+    width: 240px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    border: none;
+}

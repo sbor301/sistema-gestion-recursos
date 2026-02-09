@@ -10,18 +10,20 @@
     </div>
 
     <div class="row justify-content-center">
-        
+
         <div class="col-md-5 mb-4">
             <div class="card shadow border-0 h-100">
                 <div class="card-header bg-white border-0 pt-4 pb-0 text-center">
-                    <div class="icon-box bg-primary-subtle text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="width: 60px; height: 60px;">
+                    <div class="icon-box bg-primary-subtle text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-2"
+                        style="width: 60px; height: 60px;">
                         <i class="bi bi-people-fill fs-3"></i>
                     </div>
                     <h5 class="card-title fw-bold">Recursos / Personal</h5>
                 </div>
                 <div class="card-body text-center">
-                    <p class="card-text text-muted small">Carga masiva de ingenieros y personal. El sistema buscará por nombre; si existe lo actualiza, si no, lo crea.</p>
-                    
+                    <p class="card-text text-muted small">Carga masiva de ingenieros y personal. El sistema buscará por
+                        nombre; si existe lo actualiza, si no, lo crea.</p>
+
                     <hr class="my-3">
 
                     <form action="{% url 'importar_recursos_excel' %}" method="post" enctype="multipart/form-data">
@@ -38,7 +40,8 @@
                     </form>
                 </div>
                 <div class="card-footer bg-light text-center py-3">
-                    <a href="{% url 'descargar_plantilla_recursos' %}" class="text-decoration-none small fw-bold text-secondary">
+                    <a href="{% url 'descargar_plantilla_recursos' %}"
+                        class="text-decoration-none small fw-bold text-secondary">
                         <i class="bi bi-download me-1"></i> Descargar Plantilla de Ejemplo
                     </a>
                 </div>
@@ -46,15 +49,38 @@
         </div>
 
         <div class="col-md-5 mb-4">
-            <div class="card shadow border-0 h-100" style="opacity: 0.6;">
+            <div class="card shadow border-0 h-100">
                 <div class="card-header bg-white border-0 pt-4 pb-0 text-center">
-                    <div class="icon-box bg-secondary-subtle text-secondary rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="width: 60px; height: 60px;">
+                    <div class="icon-box bg-secondary-subtle text-secondary rounded-circle d-inline-flex align-items-center justify-content-center mb-2"
+                        style="width: 60px; height: 60px;">
                         <i class="bi bi-briefcase-fill fs-3"></i>
                     </div>
-                    <h5 class="card-title fw-bold">Proyectos (Próximamente)</h5>
+                    <h5 class="card-title fw-bold">Proyectos / Contratos</h5>
                 </div>
                 <div class="card-body text-center">
-                    <p class="card-text text-muted small">Módulo en construcción para carga masiva de proyectos y contratos.</p>
+                    <p class="card-text text-muted small">Carga masiva de proyectos. Asegúrate de usar formato de fecha
+                        (YYYY-MM-DD) o celdas tipo fecha en Excel.</p>
+
+                    <hr class="my-3">
+
+                    <form action="{% url 'importar_proyectos_excel' %}" method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3 text-start">
+                            <label class="form-label small fw-bold">1. Seleccionar Archivo (.xlsx)</label>
+                            <input type="file" name="archivo_excel" class="form-control" accept=".xlsx" required>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-secondary">
+                                <i class="bi bi-cloud-upload-fill me-2"></i>Cargar Proyectos
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer bg-light text-center py-3">
+                    <a href="{% url 'descargar_plantilla_proyectos' %}"
+                        class="text-decoration-none small fw-bold text-secondary">
+                        <i class="bi bi-download me-1"></i> Descargar Plantilla de Ejemplo
+                    </a>
                 </div>
             </div>
         </div>

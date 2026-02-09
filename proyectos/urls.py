@@ -13,6 +13,8 @@ urlpatterns = [
     path('importar/', views.centro_importacion, name='centro_importacion'),
     path('importar/recursos/', views.importar_recursos_excel, name='importar_recursos_excel'),
     path('importar/plantilla-recursos/', views.descargar_plantilla_recursos, name='descargar_plantilla_recursos'),
+    path('importar/proyectos/', views.importar_proyectos_excel, name='importar_proyectos_excel'),
+    path('importar/plantilla-proyectos/', views.descargar_plantilla_proyectos, name='descargar_plantilla_proyectos'),
     
     
     # Funcionalidades / API 

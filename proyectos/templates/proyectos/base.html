@@ -5,32 +5,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RMS - Indutronica</title>
+    <title>RMS Indutrónica</title>
+    
     <link rel="shortcut icon" type="image/png" href="{% static 'img/favicon.png' %}" />
+    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.css">
 
-    <style>
-        body {
-            padding-top: 100px;
-        }
-
-        .navbar {
-            z-index: 1030;
-        }
-
-        @media print {
-            body {
-                padding-top: 0;
-            }
-
-            .navbar,
-            .no-print {
-                display: none !important;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
 </head>
 
 <body class="bg-light">
@@ -39,8 +23,9 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark px-4 shadow fixed-top">
         <a class="navbar-brand fw-bold d-flex align-items-center" href="{% url 'index' %}">
             <img src="{% static 'img/logo_blanco.png' %}" alt="Logo" height="75" class="me-3">
-            <span>RMS Indutronica</span>
+            <span>RMS Indutrónica</span>
         </a>
+        
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
         </button>
@@ -57,8 +42,7 @@
                 </li>
 
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'lista_proyectos' %}"><i class="bi bi-list-check"></i>
-                        Proyectos</a>
+                    <a class="nav-link" href="{% url 'lista_proyectos' %}"><i class="bi bi-list-check"></i> Proyectos</a>
                 </li>
 
                 <li class="nav-item">
@@ -66,8 +50,7 @@
                 </li>
 
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'recursos' %}"><i class="bi bi-people-fill"></i> Estado del
-                        Personal</a>
+                    <a class="nav-link" href="{% url 'recursos' %}"><i class="bi bi-people-fill"></i> Personal</a>
                 </li>
 
                 <li class="nav-item">
@@ -78,21 +61,18 @@
 
                 <li class="nav-item border-start ms-2 ps-2">
                     <a class="nav-link text-warning" href="/admin" target="_blank" title="Configuración">
-                        <i class="bi bi-gear-fill"></i> Admin Panel
+                        <i class="bi bi-gear-fill"></i> Admin
                     </a>
                 </li>
 
                 {% if user.is_authenticated %}
                 <li class="nav-item dropdown ms-3">
-                    <a class="nav-link dropdown-toggle active fw-bold d-flex align-items-center" href="#" role="button"
-                        data-bs-toggle="dropdown">
+                    <a class="nav-link dropdown-toggle active fw-bold d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
                         <i class="bi bi-person-circle me-2 fs-5"></i> {{ user.username|title }}
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end shadow">
                         <li><span class="dropdown-item-text text-muted small">Sesión iniciada</span></li>
-                        <li>
-                            <hr class="dropdown-divider">
-                        </li>
+                        <li><hr class="dropdown-divider"></li>
 
                         <li>
                             <a class="dropdown-item" href="{% url 'centro_importacion' %}">
@@ -129,12 +109,12 @@
 
     <div class="container mt-3">
         {% if messages %}
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-        {% endfor %}
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
         {% endif %}
     </div>
 
@@ -146,5 +126,4 @@
     {% block scripts %}
     {% endblock %}
 </body>
-
 </html>

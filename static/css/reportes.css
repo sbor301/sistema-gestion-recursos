@@ -1,0 +1,87 @@
+/* static/css/reportes.css */
+
+/* --- ESTILOS VISUALES (PANTALLA) --- */
+.hoja-reporte {
+    transition: transform 0.2s;
+    background-color: #fff;
+}
+
+/* Efecto hover suave para que parezca "papel" */
+.hoja-reporte:hover {
+    transform: translateY(-2px);
+}
+
+/* --- ESTILOS DE IMPRESIÓN (PDF) --- */
+/* Estas reglas solo se activan al imprimir */
+@media print {
+    /* 1. Configuración de la hoja */
+    @page {
+        size: A4;
+        margin: 10mm;
+    }
+
+    /* 2. Ocultar interfaz del sistema */
+    body * { visibility: hidden; }
+    .no-print, nav, footer, .navbar, .btn { display: none !important; }
+
+    /* 3. Reset general para usar todo el ancho del papel */
+    body, .container, .col-md-12 {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+        background-color: white !important;
+    }
+
+    /* 4. Visibilidad exclusiva del reporte */
+    .hoja-reporte {
+        visibility: visible;
+        position: relative;
+        left: 0;
+        top: 0;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        page-break-after: always; /* Cada reporte en una hoja nueva */
+    }
+    
+    /* Asegurar que los hijos del reporte sean visibles */
+    .hoja-reporte * { visibility: visible; }
+
+    /* 5. Tablas perfectas */
+    .table-responsive {
+        overflow: visible !important;
+        display: block !important;
+        width: 100% !important;
+    }
+    .table { width: 100% !important; }
+    
+    /* 6. Forzar colores de fondo (Badges y Header) */
+    .badge, .table-dark, .bg-light {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        border: 1px solid #dee2e6; 
+    }
+    
+    /* 7. Espaciados críticos para impresión */
+    .bg-light.p-4 {
+        padding: 20px !important;
+        margin-bottom: 30px !important;
+        background-color: #f8f9fa !important;
+    }
+    
+    h5.border-start {
+        margin-top: 20px !important;
+        margin-bottom: 15px !important;
+        border-color: #000 !important; /* Borde negro para imprimir */
+    }
+
+    /* Evitar que una fila se corte a la mitad entre dos hojas */
+    tr, .avoid-break { page-break-inside: avoid; }
+    
+    /* Links limpios */
+    a { text-decoration: none !important; color: black !important; }
+}

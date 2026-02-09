@@ -1,0 +1,25 @@
+/* static/css/base.css */
+
+/* --- ESTILOS GENERALES DEL SISTEMA --- */
+
+body {
+    padding-top: 100px; /* Espacio para que la navbar fija no tape el contenido */
+}
+
+.navbar {
+    z-index: 1030; /* Asegura que el menú siempre esté encima de todo */
+}
+
+/* --- REGLAS DE IMPRESIÓN --- */
+/* Esto sirve para cuando quieras imprimir un reporte (Ctrl+P), 
+   el menú no salga en la hoja de papel. */
+@media print {
+    body {
+        padding-top: 0;
+    }
+
+    .navbar,
+    .no-print {
+        display: none !important;
+    }
+}

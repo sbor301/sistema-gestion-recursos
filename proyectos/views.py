@@ -10,12 +10,13 @@ from django.shortcuts import redirect
 from django.contrib import messages
 from django.db.models import Count, Q, Avg
 from django.utils import timezone
-from datetime import date
+from datetime import date, datetime
 from django.http import HttpResponse
 import openpyxl
 from django.contrib.auth.decorators import login_required
 from io import BytesIO
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from .services import procesar_excel_recursos, procesar_excel_proyectos
 import json
 
 @login_required
@@ -66,10 +67,11 @@ def vista_gantt(request):
 @never_cache
 @login_required
 def buscar_disponibilidad(request):
-    # ---INICIALIZACIÓN ---
+    # --- INICIALIZACIÓN ---
     candidatos_finales = []
     mensaje = ""
     tarea_obj = None
+    
     # Capturamos fechas y perfil
     fecha_inicio_req = request.GET.get('fecha_inicio')
     fecha_fin_req = request.GET.get('fecha_fin')
@@ -81,6 +83,13 @@ def buscar_disponibilidad(request):
     if tarea_id:
         try:
             tarea_obj = Tarea.objects.get(id=tarea_id)
+            
+            # 🔒 CANDADO 1: Validación temprana
+            # Si la tarea ya terminó, expulsamos al usuario inmediatamente.
+            if tarea_obj.progreso >= 100:
+                messages.warning(request, f"La tarea '{tarea_obj.nombre}' ya está finalizada. No se puede reasignar.")
+                return redirect('gantt')
+
             if not fecha_inicio_req: fecha_inicio_req = tarea_obj.fecha_inicio.strftime('%Y-%m-%d')
             if not fecha_fin_req: fecha_fin_req = tarea_obj.fecha_fin.strftime('%Y-%m-%d')
             requisitos = tarea_obj.requisitos.all()
@@ -119,7 +128,7 @@ def buscar_disponibilidad(request):
                     ultima_tarea = Tarea.objects.filter(
                         asignado_a=recurso,
                         progreso__lt=100,
-                        fecha_fin__gte=fecha_inicio_req  # Tareas que terminan después del inicio buscado
+                        fecha_fin__gte=fecha_inicio_req
                     ).order_by('-fecha_fin').first()
                     
                     if ultima_tarea:
@@ -154,7 +163,6 @@ def buscar_disponibilidad(request):
                 })
 
             # D. ORDENAMIENTO INTELIGENTE
-            # Primero por Match (Mayor a menor), luego por Disponibilidad (Libres primero)
             candidatos_finales.sort(key=lambda x: (not x['ocupado'], x['match']), reverse=True)
 
             if not candidatos_finales:
@@ -192,12 +200,19 @@ def actualizar_tarea_api(request):
     except Exception as e:
         return JsonResponse({'status': 'error', 'mensaje': str(e)}, status=400)
 
-@login_required
 @never_cache
+@login_required
 def asignar_recurso(request, tarea_id, recurso_id):
-    tarea = Tarea.objects.get(id=tarea_id)
-    recurso = Recurso.objects.get(id=recurso_id)
+    # Usamos get_object_or_404 por seguridad, aunque .get() también funciona
+    tarea = get_object_or_404(Tarea, id=tarea_id)
+    recurso = get_object_or_404(Recurso, id=recurso_id)
     
+    # 🔒 CANDADO 2: Validación final
+    # Evita que alguien fuerce la asignación escribiendo la URL manualmente
+    if tarea.progreso >= 100:
+        messages.error(request, f"Acción denegada: La tarea '{tarea.nombre}' ya está finalizada.")
+        return redirect('gantt')
+
     tarea.asignado_a = recurso
     tarea.save()
 
@@ -428,96 +443,23 @@ def reporte_recurso(request):
 @login_required
 @never_cache
 def centro_importacion(request):
-    # Esta vista solo renderiza la pantalla bonita con las opciones
+    # Esta vista solo renderiza la pantalla con las opciones
     return render(request, 'proyectos/importar_datos.html')
 
 @login_required
 @never_cache
 def importar_recursos_excel(request):
     if request.method == 'POST' and request.FILES.get('archivo_excel'):
-        excel_file = request.FILES['archivo_excel']
+        # 1. Llamamos al servicio (él hace el trabajo sucio)
+        resultado = procesar_excel_recursos(request.FILES['archivo_excel'])
         
-        try:
-            wb = openpyxl.load_workbook(excel_file)
-            ws = wb.active
-            
-            creados = 0
-            actualizados = 0
-            errores = []
-
-            # Iteramos desde la fila 2
-            for index, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-                try:
-                    # 1. LECTURA DE COLUMNAS (A, B, C, D)
-                    nombre = row[0]
-                    cargo = row[1]
-                    correo = row[2]
-                    habilidades_str = row[3] 
-
-                    if not nombre: 
-                        continue
-
-                    # 2. CREAR O ACTUALIZAR EL RECURSO
-                    recurso, created = Recurso.objects.update_or_create(
-                        nombre=nombre,
-                        defaults={
-                            'cargo': cargo if cargo else "Sin cargo",
-                            'correo': correo if correo else "",
-                            'activo': True
-                        }
-                    )
-                    
-                    if created: creados += 1
-                    else: actualizados += 1
-
-                    # 3. PROCESAR HABILIDADES 
-                    # Formato esperado: "Python:5, Java:3, Excel:4"
-                    if habilidades_str:
-                        # Separamos por comas
-                        lista_skills = str(habilidades_str).split(',')
-                        
-                        for skill_raw in lista_skills:
-                            # Limpiamos espacios 
-                            skill_data = skill_raw.strip()
-                            if not skill_data: continue
-
-                            # Separamos Nombre y Nivel por los dos puntos ":"
-                            if ':' in skill_data:
-                                partes = skill_data.split(':')
-                                nombre_skill = partes[0].strip()
-                                try:
-                                    nivel_skill = int(partes[1].strip())
-                                except ValueError:
-                                    nivel_skill = 1 # Si ponen "Python:A", ponemos 1 por defecto
-                            else:
-                                # Si solo ponen "Python" sin nivel, asumimos nivel 1
-                                nombre_skill = skill_data
-                                nivel_skill = 1
-
-                            # A. Buscamos o creamos el Conocimiento en el catálogo general
-                            conocimiento_obj, _ = Conocimiento.objects.get_or_create(
-                                nombre=nombre_skill
-                            )
-
-                            # B. Asignamos ese conocimiento al Recurso (Crear Habilidad)
-                            Habilidad.objects.update_or_create(
-                                recurso=recurso,
-                                conocimiento=conocimiento_obj,
-                                defaults={'nivel': nivel_skill}
-                            )
-                    
-                except Exception as e:
-                    errores.append(f"Fila {index}: {str(e)}")
-
-            # Feedback
-            msg_final = f"Proceso finalizado: {creados} recursos creados, {actualizados} actualizados."
-            if errores:
-                messages.warning(request, f"{msg_final} Hubo errores en {len(errores)} filas.")
-            else:
-                messages.success(request, msg_final)
-
-        except Exception as e:
-            messages.error(request, f"Error crítico al leer el archivo: {str(e)}")
+        # 2. La vista solo se encarga de los mensajes
+        msg = f"Proceso: {resultado['creados']} creados, {resultado['actualizados']} actualizados."
+        if resultado['errores']:
+            detalle = " | ".join(resultado['errores'][:2])
+            messages.warning(request, f"{msg} Errores: {detalle}")
+        else:
+            messages.success(request, msg)
             
     return redirect('centro_importacion')
 
@@ -560,4 +502,61 @@ def descargar_plantilla_recursos(request):
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
     response['Content-Disposition'] = 'attachment; filename=Plantilla_Recursos.xlsx'
+    return response
+
+@login_required
+@never_cache
+def importar_proyectos_excel(request):
+    if request.method == 'POST' and request.FILES.get('archivo_excel'):
+        # 1. Llamamos al servicio
+        resultado = procesar_excel_proyectos(request.FILES['archivo_excel'])
+        
+        # 2. Mensajes
+        msg = f"Proyectos: {resultado['creados']} creados, {resultado['actualizados']} actualizados."
+        if resultado['errores']:
+            detalle = " | ".join(resultado['errores'][:2])
+            messages.warning(request, f"{msg} Errores: {detalle}")
+        else:
+            messages.success(request, msg)
+            
+    return redirect('centro_importacion')
+
+@login_required
+def descargar_plantilla_proyectos(request):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Plantilla Proyectos"
+    
+    # Encabezados: Agregamos la Columna E para la Unidad de Negocio
+    headers = [
+        'Nombre del Proyecto', 
+        'Centro de Costo', 
+        'Fecha Inicio (YYYY-MM-DD)', 
+        'Fecha Fin (YYYY-MM-DD)', 
+        'Unidad de Negocio'  # <--- COLUMNA E (NUEVA)
+    ]
+    ws.append(headers)
+    
+    # Ejemplos: Incluimos ejemplos válidos para guiar al usuario
+    ws.append(['Mantenimiento Norte', 'Obras Civiles', '2026-02-01', '2026-05-30', 'ENERGIA'])
+    ws.append(['Instalación CCTV', 'Tecnología', '2026-03-10', '2026-04-10', 'TELECOMUNICACIONES'])
+    ws.append(['Tableros PLC', 'Planta 1', '2026-03-15', '2026-06-20', 'AUTOMATIZACION'])
+    
+    # Ajuste visual de anchos de columna
+    ws.column_dimensions['A'].width = 30
+    ws.column_dimensions['B'].width = 20
+    ws.column_dimensions['C'].width = 15
+    ws.column_dimensions['D'].width = 15
+    ws.column_dimensions['E'].width = 25
+
+    # Preparamos el archivo en memoria
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    
+    response = HttpResponse(
+        content=buffer.getvalue(), 
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename=Plantilla_Proyectos_Completa.xlsx'
     return response
