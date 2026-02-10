@@ -6,7 +6,7 @@ from openpyxl.styles import Font, PatternFill
 from django.http import HttpResponse
 from datetime import datetime
 from rrhh.models import Recurso, Habilidad, Conocimiento, Perfil
-from .models import Proyecto, Tarea
+from .models import Proyecto, Tarea, Cliente
 
 def procesar_excel_recursos(archivo_excel):
     wb = openpyxl.load_workbook(archivo_excel)
@@ -378,6 +378,117 @@ def generar_excel_reporte(datos_reporte):
     # Preparar respuesta HTTP
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = 'attachment; filename=Reporte_Recursos_RMS.xlsx'
+    wb.save(response)
+    
+    return response
+
+def obtener_datos_reporte_clientes(cliente_id=None, fecha_inicio=None, fecha_fin=None):
+    """
+    Genera un reporte estructurado de Clientes -> Proyectos -> Estado.
+    Calcula el progreso del proyecto basado en el promedio de sus tareas.
+    """
+    # 1. Filtro inicial de Clientes
+    if cliente_id:
+        clientes = Cliente.objects.filter(id=cliente_id)
+    else:
+        # Si no selecciona cliente, traemos todos los que tengan al menos un proyecto
+        clientes = Cliente.objects.filter(proyectos__isnull=False).distinct()
+
+    datos_reporte = []
+
+    for cliente in clientes:
+        # Filtramos los proyectos de este cliente
+        proyectos = cliente.proyectos.all().order_by('fecha_fin_estimada')
+        
+        # Filtros de fecha (Opcional: Si el proyecto está activo en ese rango)
+        if fecha_inicio:
+            proyectos = proyectos.filter(fecha_fin_estimada__gte=fecha_inicio)
+        if fecha_fin:
+            proyectos = proyectos.filter(fecha_inicio__lte=fecha_fin)
+            
+        lista_proyectos_data = []
+        
+        for proy in proyectos:
+            # Cálculos por Proyecto
+            total_tareas = proy.tareas.count()
+            completadas = proy.tareas.filter(progreso=100).count()
+            
+            # El progreso del proyecto es el promedio del progreso de sus tareas
+            # O puedes usar regla de tres simple (completadas / total)
+            if total_tareas > 0:
+                progreso_real = round((completadas / total_tareas) * 100, 1)
+            else:
+                progreso_real = 0
+
+            # Estado del Proyecto
+            estado = "En Curso"
+            if progreso_real == 100:
+                estado = "Finalizado"
+            elif proy.fecha_fin_estimada < date.today() and progreso_real < 100:
+                estado = "Atrasado"
+
+            lista_proyectos_data.append({
+                'proyecto': proy,
+                'total_tareas': total_tareas,
+                'completadas': completadas,
+                'progreso': progreso_real,
+                'estado': estado
+            })
+        
+        if lista_proyectos_data:
+            datos_reporte.append({
+                'cliente': cliente,
+                'proyectos': lista_proyectos_data
+            })
+            
+    return datos_reporte
+
+def generar_excel_reporte_clientes(datos_reporte):
+    """
+    Genera el Excel para el reporte comercial de clientes.
+    """
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Reporte Comercial"
+
+    # Estilos
+    header_font = Font(bold=True, color="FFFFFF")
+    # Usamos un color diferente (Verde oscuro) para diferenciarlo del reporte de RRHH
+    header_fill = PatternFill(start_color="198754", end_color="198754", fill_type="solid")
+    
+    # Encabezados
+    headers = ['Cliente', 'Proyecto', 'Centro Costo', 'Inicio', 'Fin Estimado', 'Estado', 'Progreso (%)', 'Tareas Totales']
+    ws.append(headers)
+
+    for cell in ws[1]:
+        cell.font = header_font
+        cell.fill = header_fill
+
+    # Llenar datos
+    for item in datos_reporte:
+        nombre_cliente = item['cliente'].nombre
+        
+        for p in item['proyectos']:
+            proy = p['proyecto']
+            ws.append([
+                nombre_cliente,
+                proy.nombre,
+                proy.centro_costo,
+                proy.fecha_inicio,
+                proy.fecha_fin_estimada,
+                p['estado'],
+                p['progreso'],
+                p['total_tareas']
+            ])
+
+    # Ajuste de columnas
+    ws.column_dimensions['A'].width = 25
+    ws.column_dimensions['B'].width = 30
+    ws.column_dimensions['C'].width = 15
+    ws.column_dimensions['F'].width = 15
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename=Reporte_Clientes_RMS.xlsx'
     wb.save(response)
     
     return response

@@ -2,6 +2,20 @@ from django.db import models
 from datetime import date
 from rrhh.models import Recurso, Conocimiento
 
+class Cliente(models.Model):
+    nombre = models.CharField(max_length=200, unique=True, verbose_name="Nombre del Cliente")
+    contacto_principal = models.CharField(max_length=100, blank=True, null=True)
+    email_contacto = models.EmailField(blank=True, null=True)
+    telefono = models.CharField(max_length=20, blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Cliente"
+        verbose_name_plural = "Clientes"
+        ordering = ['nombre']
+
+    def __str__(self):
+        return self.nombre
+
 class Proyecto(models.Model):
     nombre = models.CharField(max_length=200)
 
@@ -26,12 +40,22 @@ class Proyecto(models.Model):
         verbose_name="Unidad de Negocio"
     )
 
+    cliente = models.ForeignKey(
+        Cliente, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='proyectos',
+        verbose_name="Cliente Asignado"
+    )
+
     fecha_inicio = models.DateField()
     fecha_fin_estimada = models.DateField()
     descripcion = models.TextField(blank=True)
 
     def __str__(self):
-        return f"{self.nombre} ({self.centro_costo}) ({self.get_unidad_negocio_display()})"
+        cliente_str = f" - {self.cliente.nombre}" if self.cliente else ""
+        return f"{self.nombre}{cliente_str} ({self.centro_costo})"
 
 class Tarea(models.Model):
     nombre = models.CharField(max_length=200)

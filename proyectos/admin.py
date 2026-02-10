@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Proyecto, Tarea
+from .models import Proyecto, Tarea, Cliente
 
 # 1. Configuración del Admin de PROYECTOS
 @admin.register(Proyecto)
@@ -11,6 +11,11 @@ class ProyectoAdmin(admin.ModelAdmin):
     
     list_filter = ('unidad_negocio', 'centro_costo')
     search_fields = ('nombre', 'centro_costo')
+
+@admin.register(Cliente)
+class ClienteAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'contacto_principal', 'email_contacto')
+    search_fields = ('nombre',)
 
 # 2. Configuración del Admin de TAREAS
 @admin.register(Tarea)

@@ -15,6 +15,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.css">
 
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    
+    <style>
+        body { padding-top: 100px; }
+    </style>
 </head>
 
 <body class="bg-light">
@@ -53,12 +57,23 @@
                     <a class="nav-link" href="{% url 'recursos' %}"><i class="bi bi-people-fill"></i> Personal</a>
                 </li>
 
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'reporte_recurso' %}">
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownReportes" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-file-earmark-bar-graph"></i> Reportes
                     </a>
+                    <ul class="dropdown-menu shadow" aria-labelledby="navbarDropdownReportes">
+                        <li>
+                            <a class="dropdown-item" href="{% url 'reporte_recurso' %}">
+                                <i class="bi bi-person-badge me-2 text-primary"></i>Por Recurso (RRHH)
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{% url 'reporte_cliente' %}">
+                                <i class="bi bi-briefcase me-2 text-success"></i>Por Cliente (Comercial)
+                            </a>
+                        </li>
+                    </ul>
                 </li>
-
                 <li class="nav-item border-start ms-2 ps-2">
                     <a class="nav-link text-warning" href="/admin" target="_blank" title="Configuración">
                         <i class="bi bi-gear-fill"></i> Admin

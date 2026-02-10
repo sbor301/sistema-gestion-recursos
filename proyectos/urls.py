@@ -15,6 +15,7 @@ urlpatterns = [
     path('importar/plantilla-recursos/', views.descargar_plantilla_recursos, name='descargar_plantilla_recursos'),
     path('importar/proyectos/', views.importar_proyectos_excel, name='importar_proyectos_excel'),
     path('importar/plantilla-proyectos/', views.descargar_plantilla_proyectos, name='descargar_plantilla_proyectos'),
+    path('reportes/clientes/', views.reporte_cliente, name='reporte_cliente'),
     
     
     # Funcionalidades / API 

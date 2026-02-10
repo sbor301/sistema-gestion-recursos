@@ -1,0 +1,141 @@
+{% extends 'proyectos/base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/reportes.css' %}">
+
+<div class="container mt-4">
+
+    <div class="card shadow-sm mb-4 no-print bg-light">
+        <div class="card-body">
+            <h5 class="card-title mb-3 text-success"><i class="bi bi-briefcase-fill me-2"></i>Reporte Comercial por Cliente</h5>
+            
+            <form method="GET" class="row g-3 align-items-end" id="formReporte">
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold">Seleccionar Cliente</label>
+                    <select name="cliente" class="form-select">
+                        <option value="">-- Todos los Clientes --</option>
+                        {% for c in clientes %}
+                        <option value="{{ c.id }}" {% if filtros.cliente == c.id %}selected{% endif %}>
+                            {{ c.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold">Proyectos Activos Desde</label>
+                    <input type="date" name="fecha_inicio" class="form-control" value="{{ filtros.fecha_inicio }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold">Hasta</label>
+                    <input type="date" name="fecha_fin" class="form-control" value="{{ filtros.fecha_fin }}">
+                </div>
+                
+                <div class="col-md-2 d-grid gap-2">
+                    <button type="submit" name="exportar" value="web" class="btn btn-primary">
+                        <i class="bi bi-eye"></i> Ver
+                    </button>
+                    <button type="submit" name="exportar" value="excel" class="btn btn-success text-white">
+                        <i class="bi bi-file-earmark-excel"></i> Excel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if reporte_data %}
+    <div class="text-end mb-3 no-print">
+        <button onclick="window.print()" class="btn btn-secondary">
+            <i class="bi bi-printer-fill me-2"></i>Imprimir PDF
+        </button>
+    </div>
+
+    {% for item in reporte_data %}
+    <div class="card shadow-lg border-0 mb-5 hoja-reporte">
+        <div class="card-body p-5">
+            
+            <div class="d-flex justify-content-between border-bottom pb-4 mb-4">
+                <div>
+                    <h2 class="fw-bold text-dark">Estado de Proyectos</h2>
+                    <p class="text-muted mb-0">Reporte para: <span class="fw-bold text-success">{{ item.cliente.nombre }}</span></p>
+                </div>
+                <div class="text-end">
+                    <img src="{% static 'img/logo_azul.png' %}" alt="Logo" style="height: 85px;">
+                    <small class="d-block text-muted mt-2">Contacto: {{ item.cliente.contacto_principal|default:"--" }}</small>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-success text-dark">
+                        <tr>
+                            <th>Proyecto</th>
+                            <th>Centro Costo</th>
+                            <th>Fechas Estimadas</th>
+                            <th class="text-center">Tareas</th>
+                            <th class="text-center">Estado</th>
+                            <th>Avance Global</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in item.proyectos %}
+                        <tr>
+                            <td class="fw-bold">{{ p.proyecto.nombre }}</td>
+                            <td><span class="badge bg-light text-dark border">{{ p.proyecto.centro_costo }}</span></td>
+                            <td class="small text-muted">
+                                {{ p.proyecto.fecha_inicio|date:"d M" }} - {{ p.proyecto.fecha_fin_estimada|date:"d M Y" }}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-secondary">{{ p.completadas }} / {{ p.total_tareas }}</span>
+                            </td>
+                            <td class="text-center">
+                                {% if p.estado == 'Finalizado' %}
+                                    <span class="badge bg-success">Entregado</span>
+                                {% elif p.estado == 'Atrasado' %}
+                                    <span class="badge bg-danger">Retraso</span>
+                                {% else %}
+                                    <span class="badge bg-primary">En Curso</span>
+                                {% endif %}
+                            </td>
+                            <td style="width: 20%;">
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar {% if p.estado == 'Atrasado' %}bg-danger{% elif p.estado == 'Finalizado' %}bg-success{% endif %}" 
+                                         role="progressbar" 
+                                         style="width: {{ p.progreso }}%;" 
+                                         aria-valuenow="{{ p.progreso }}" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100">
+                                        {{ p.progreso }}%
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">Este cliente no tiene proyectos activos en este rango.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="row mt-5 pt-3 border-top">
+                <div class="col-12 text-center text-muted small">
+                    <p>Documento generado automáticamente por el sistema RMS.</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    {% endfor %}
+
+    {% else %}
+        {% if request.GET %}
+        <div class="alert alert-warning text-center">
+            No se encontraron datos con los filtros seleccionados.
+        </div>
+        {% endif %}
+    {% endif %}
+
+</div>
+{% endblock %}

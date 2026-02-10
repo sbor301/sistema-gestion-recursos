@@ -3,7 +3,7 @@ from django.shortcuts import render, get_object_or_404
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from django.core.serializers.json import DjangoJSONEncoder
-from .models import Tarea, Proyecto
+from .models import Tarea, Proyecto, Cliente
 from rrhh.models import Recurso, Perfil, Habilidad, Conocimiento
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -17,7 +17,7 @@ import openpyxl
 from django.contrib.auth.decorators import login_required
 from io import BytesIO
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from .services import procesar_excel_recursos, procesar_excel_proyectos, obtener_kpis_dashboard, obtener_datos_reporte_recursos, generar_excel_reporte
+from .services import procesar_excel_recursos, procesar_excel_proyectos, obtener_kpis_dashboard, obtener_datos_reporte_recursos, generar_excel_reporte, obtener_datos_reporte_clientes, generar_excel_reporte_clientes
 import json
 
 @login_required
@@ -386,3 +386,38 @@ def descargar_plantilla_proyectos(request):
     )
     response['Content-Disposition'] = 'attachment; filename=Plantilla_Proyectos_Completa.xlsx'
     return response
+
+@login_required
+@never_cache
+def reporte_cliente(request):
+    """
+    Vista para el reporte comercial por Cliente.
+    Delega la lógica a services.py
+    """
+    # 1. Capturar filtros del formulario
+    cliente_id = request.GET.get('cliente')
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+    es_excel = request.GET.get('exportar') == 'excel'
+
+    # 2. Llamar al Servicio (Obtener datos procesados)
+    # Nota: Si no hay filtros, el servicio decide qué traer (por defecto todo)
+    datos_reporte = obtener_datos_reporte_clientes(cliente_id, fecha_inicio, fecha_fin)
+
+    # 3. ¿Pidieron Excel? (Descarga directa)
+    if es_excel and datos_reporte:
+        return generar_excel_reporte_clientes(datos_reporte)
+
+    # 4. Renderizar HTML (Pantalla)
+    contexto = {
+        'clientes': Cliente.objects.all(), # Para llenar el <select> del filtro
+        'reporte_data': datos_reporte,
+        'hoy': date.today(),
+        'filtros': {
+            'cliente': int(cliente_id) if cliente_id else "",
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin
+        }
+    }
+
+    return render(request, 'proyectos/reporte_cliente.html', contexto)
