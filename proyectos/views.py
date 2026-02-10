@@ -1,4 +1,3 @@
-from .services import obtener_candidatos_optimos
 from django.shortcuts import render, get_object_or_404
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
@@ -17,7 +16,7 @@ import openpyxl
 from django.contrib.auth.decorators import login_required
 from io import BytesIO
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from .services import procesar_excel_recursos, procesar_excel_proyectos, obtener_kpis_dashboard, obtener_datos_reporte_recursos, generar_excel_reporte, obtener_datos_reporte_clientes, generar_excel_reporte_clientes
+from .services import procesar_excel_recursos, procesar_excel_proyectos, obtener_kpis_dashboard, obtener_datos_reporte_recursos, generar_excel_reporte, obtener_datos_reporte_clientes, generar_excel_reporte_clientes, obtener_candidatos_optimos
 import json
 
 @login_required
