@@ -1,3 +1,4 @@
+from .services import obtener_candidatos_optimos
 from django.shortcuts import render, get_object_or_404
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
@@ -6,7 +7,7 @@ from .models import Tarea, Proyecto
 from rrhh.models import Recurso, Perfil, Habilidad, Conocimiento
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.contrib import messages
 from django.db.models import Count, Q, Avg
 from django.utils import timezone
@@ -16,7 +17,7 @@ import openpyxl
 from django.contrib.auth.decorators import login_required
 from io import BytesIO
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from .services import procesar_excel_recursos, procesar_excel_proyectos
+from .services import procesar_excel_recursos, procesar_excel_proyectos, obtener_kpis_dashboard, obtener_datos_reporte_recursos, generar_excel_reporte
 import json
 
 @login_required
@@ -67,116 +68,62 @@ def vista_gantt(request):
 @never_cache
 @login_required
 def buscar_disponibilidad(request):
-    # --- INICIALIZACIÓN ---
-    candidatos_finales = []
-    mensaje = ""
-    tarea_obj = None
-    
-    # Capturamos fechas y perfil
-    fecha_inicio_req = request.GET.get('fecha_inicio')
-    fecha_fin_req = request.GET.get('fecha_fin')
+    # 1. Captura de Parámetros
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
     perfil_id = request.GET.get('perfil_id')
     tarea_id = request.GET.get('tarea_id')
     
-    # --- 2. RECUPERAR TAREA Y REQUISITOS ---
+    tarea_obj = None
     requisitos = []
+    mensaje = ""
+    candidatos = []
+
+    # 2. Validación de Tarea (Lógica de vista: Redirección)
     if tarea_id:
         try:
             tarea_obj = Tarea.objects.get(id=tarea_id)
-            
-            # 🔒 CANDADO 1: Validación temprana
-            # Si la tarea ya terminó, expulsamos al usuario inmediatamente.
+            # Candado de seguridad
             if tarea_obj.progreso >= 100:
-                messages.warning(request, f"La tarea '{tarea_obj.nombre}' ya está finalizada. No se puede reasignar.")
+                messages.warning(request, f"La tarea '{tarea_obj.nombre}' ya finalizó.")
                 return redirect('gantt')
-
-            if not fecha_inicio_req: fecha_inicio_req = tarea_obj.fecha_inicio.strftime('%Y-%m-%d')
-            if not fecha_fin_req: fecha_fin_req = tarea_obj.fecha_fin.strftime('%Y-%m-%d')
+            
+            # Autocompletar fechas si vienen vacías
+            if not fecha_inicio: fecha_inicio = tarea_obj.fecha_inicio.strftime('%Y-%m-%d')
+            if not fecha_fin: fecha_fin = tarea_obj.fecha_fin.strftime('%Y-%m-%d')
+            
             requisitos = tarea_obj.requisitos.all()
+            
         except Tarea.DoesNotExist:
             tarea_obj = None
 
-    # --- 3. LÓGICA DE BÚSQUEDA ---
-    if fecha_inicio_req and fecha_fin_req:
-        if fecha_inicio_req > fecha_fin_req:
-            mensaje = "Error: La fecha de inicio no puede ser mayor al fin."
-        else:
-            # A. TRAEMOS A TODOS (Activos)
-            recursos = Recurso.objects.filter(activo=True)
+    # 3. LLAMADA AL SERVICIO (Aquí ocurre la magia)
+    if fecha_inicio and fecha_fin:
+        try:
+            candidatos = obtener_candidatos_optimos(
+                fecha_inicio, 
+                fecha_fin, 
+                perfil_id, 
+                requisitos
+            )
+            if not candidatos:
+                mensaje = "No se encontraron recursos que coincidan con los filtros."
+        except ValueError as e:
+            mensaje = str(e) # "La fecha inicio no puede ser mayor..."
 
-            if perfil_id:
-                recursos = recursos.filter(perfil_id=perfil_id)
-
-            # B. IDENTIFICAMOS A LOS OCUPADOS (Solo para marcar, no para borrar)
-            ocupados_ids = Tarea.objects.filter(
-                fecha_inicio__lte=fecha_fin_req,
-                fecha_fin__gte=fecha_inicio_req,
-                progreso__lt=100
-            ).values_list('asignado_a_id', flat=True)
-
-            # C. PROCESAMOS A CADA RECURSO
-            for recurso in recursos:
-                # 1. Calculamos Disponibilidad Básica
-                esta_ocupado = recurso.id in ocupados_ids
-                
-                # --- CALCULAR CUÁNDO SE LIBERA ---
-                fecha_liberacion = None
-                nombre_tarea_actual = ""
-                
-                if esta_ocupado:
-                    # Buscamos la tarea que termina más tarde dentro del rango conflicto
-                    ultima_tarea = Tarea.objects.filter(
-                        asignado_a=recurso,
-                        progreso__lt=100,
-                        fecha_fin__gte=fecha_inicio_req
-                    ).order_by('-fecha_fin').first()
-                    
-                    if ultima_tarea:
-                        fecha_liberacion = ultima_tarea.fecha_fin
-                        nombre_tarea_actual = ultima_tarea.nombre
-                
-                # 2. Calculamos Match Técnico 
-                match_score = 0
-                detalles = []
-                
-                if requisitos:
-                    puntos_totales = 0
-                    for req in requisitos:
-                        habilidad = Habilidad.objects.filter(recurso=recurso, conocimiento=req).first()
-                        if habilidad:
-                            puntos = (habilidad.nivel / 5) * 100
-                            puntos_totales += puntos
-                            detalles.append({'skill': req.nombre, 'nivel': habilidad.get_nivel_display(), 'cumple': True})
-                        else:
-                            detalles.append({'skill': req.nombre, 'nivel': '---', 'cumple': False})
-                    match_score = round(puntos_totales / len(requisitos))
-                else:
-                    match_score = 100 
-
-                candidatos_finales.append({
-                    'perfil': recurso,
-                    'match': match_score,
-                    'ocupado': esta_ocupado,
-                    'fecha_liberacion': fecha_liberacion, 
-                    'tarea_actual': nombre_tarea_actual,  
-                    'detalles': detalles
-                })
-
-            # D. ORDENAMIENTO INTELIGENTE
-            candidatos_finales.sort(key=lambda x: (not x['ocupado'], x['match']), reverse=True)
-
-            if not candidatos_finales:
-                 mensaje = "No se encontraron recursos activos con ese perfil."
-
-    # --- 4. CONTEXTO ---
-    perfiles = Perfil.objects.all()
+    # 4. Contexto para el HTML
     contexto = {
-        'perfiles': perfiles,
-        'candidatos': candidatos_finales,
+        'perfiles': Perfil.objects.all(),
+        'candidatos': candidatos,
         'mensaje': mensaje,
         'tarea_seleccionada': tarea_obj,
-        'filtros': {'fecha_inicio': fecha_inicio_req, 'fecha_fin': fecha_fin_req, 'perfil': int(perfil_id) if perfil_id else ''}
+        'filtros': {
+            'fecha_inicio': fecha_inicio, 
+            'fecha_fin': fecha_fin, 
+            'perfil': int(perfil_id) if perfil_id else ''
+        }
     }
+    
     return render(request, 'proyectos/buscar.html', contexto)
 
 @never_cache
@@ -224,38 +171,11 @@ def asignar_recurso(request, tarea_id, recurso_id):
 @login_required
 @never_cache
 def index(request):
-    # Contadores para el Dashboard
-    total_proyectos = Proyecto.objects.count()
-    total_tareas = Tarea.objects.count()
-    total_recursos = Recurso.objects.count()
+    # Delegamos la lógica al servicio
+    datos_dashboard = obtener_kpis_dashboard()
     
-    # Calculamos progreso promedio 
-    tareas_completadas = Tarea.objects.filter(progreso=100).count()
-
-    # --- Agrupar por Centro de Costo ---
-    # Esto crea una lista 
-    centros_unicos = Proyecto.objects.values_list('centro_costo', flat=True).distinct()
-
-    datos_agrupados = []
-    for cc in centros_unicos:
-        # Buscamos los proyectos de este centro
-        proyectos = Proyecto.objects.filter(centro_costo=cc)
-        
-        datos_agrupados.append({
-            'nombre_cc': cc,
-            'cantidad': proyectos.count(),
-            'lista_proyectos': proyectos 
-        })
-    
-    contexto = {
-        'total_proyectos': total_proyectos,
-        'total_tareas': total_tareas,
-        'total_recursos': total_recursos,
-        'tareas_completadas': tareas_completadas,
-        'proyectos_por_cc': datos_agrupados,
-    }
-    
-    return render(request, 'proyectos/index.html', contexto)
+    # Pasamos los datos al template
+    return render(request, 'proyectos/index.html', datos_dashboard)
 
 @login_required
 @never_cache
@@ -314,120 +234,26 @@ def lista_proyectos(request):
 @login_required
 @never_cache
 def reporte_recurso(request):
-    recursos = Recurso.objects.all()
-    
-    # Filtros recibidos
+    # 1. Capturar filtros
     recurso_id = request.GET.get('recurso')
     fecha_inicio = request.GET.get('fecha_inicio')
     fecha_fin = request.GET.get('fecha_fin')
-    exportar_excel = request.GET.get('exportar') == 'excel' # Detectar si pidieron Excel
+    es_excel = request.GET.get('exportar') == 'excel'
     
-    # 1. Determinar qué recursos vamos a procesar
-    if recurso_id:
-        recursos_filtrados = Recurso.objects.filter(id=recurso_id)
-    else:
-        # Si no selecciona nada, son TODOS 
-        if request.GET: 
-            recursos_filtrados = Recurso.objects.all()
-        else:
-            recursos_filtrados = [] 
-
+    # 2. Obtener los datos PROCESADOS desde el servicio
+    # (Ya no calculamos nada aquí, solo pedimos datos)
     datos_reporte = []
+    if recurso_id or request.GET: # Solo buscar si hay filtros o petición explícita
+        datos_reporte = obtener_datos_reporte_recursos(recurso_id, fecha_inicio, fecha_fin)
 
-    # 2. Procesamos la información para cada recurso encontrado
-    for recurso in recursos_filtrados:
-        tareas = Tarea.objects.filter(asignado_a=recurso).order_by('-fecha_fin')
-        
-        if fecha_inicio:
-            tareas = tareas.filter(fecha_inicio__gte=fecha_inicio)
-        if fecha_fin:
-            tareas = tareas.filter(fecha_fin__lte=fecha_fin)
-            
-        # Estadísticas
-        total_tareas = tareas.count()
-        completadas = tareas.filter(progreso=100).count()
-        pendientes = total_tareas - completadas
-        rendimiento = round((completadas / total_tareas * 100), 1) if total_tareas > 0 else 0
-        
-        datos_reporte.append({
-            'recurso': recurso,
-            'tareas': tareas,
-            'stats': {
-                'total': total_tareas,
-                'completadas': completadas,
-                'pendientes': pendientes,
-                'rendimiento': rendimiento
-            }
-        })
+    # 3. ¿Pidieron Excel?
+    if es_excel and datos_reporte:
+        # El servicio se encarga de crear el archivo y la respuesta HTTP
+        return generar_excel_reporte(datos_reporte)
 
-    # --- LÓGICA DE EXCEL ---
-    if exportar_excel and datos_reporte:
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Reporte de Recursos"
-
-        # Estilos para el Excel
-        header_font = Font(bold=True, color="FFFFFF")
-        header_fill = PatternFill(start_color="0d6efd", end_color="0d6efd", fill_type="solid")
-        
-        # Encabezados
-        headers = ['Ingeniero/Recurso', 'Cargo/Perfil', 'Proyecto', 'Tarea', 'Inicio', 'Fin', 'Estado', 'Progreso (%)']
-        ws.append(headers)
-
-        for cell in ws[1]:
-            cell.font = header_font
-            cell.fill = header_fill
-
-        # Llenar datos
-        hoy = date.today()
-        for data in datos_reporte:
-            r_nombre = data['recurso'].nombre
-            
-            # Intentamos obtener 'cargo', si no existe, intentamos 'perfil', si no, ponemos 'N/A'
-            try:
-                r_cargo = data['recurso'].cargo
-            except AttributeError:
-                try:
-                    
-                    r_cargo = str(data['recurso'].perfil) 
-                except AttributeError:
-                    r_cargo = "No especificado"
-            # ---------------------------------------------------
-
-            if not data['tareas']:
-                ws.append([r_nombre, r_cargo, "Sin tareas", "-", "-", "-", "-", "-"])
-                continue
-
-            for t in data['tareas']:
-                estado = "En Curso"
-                if t.progreso == 100: estado = "Finalizado"
-                elif t.fecha_fin < hoy: estado = "Atrasado"
-
-                ws.append([
-                    r_nombre,
-                    r_cargo,
-                    t.proyecto.nombre,
-                    t.nombre,
-                    t.fecha_inicio,
-                    t.fecha_fin,
-                    estado,
-                    t.progreso
-                ])
-
-        # Ajuste de columnas
-        ws.column_dimensions['A'].width = 25
-        ws.column_dimensions['B'].width = 20
-        ws.column_dimensions['C'].width = 25
-        ws.column_dimensions['D'].width = 30
-
-        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = 'attachment; filename=Reporte_Recursos_RMS.xlsx'
-        wb.save(response)
-        return response
-
-    # --- LÓGICA NORMAL (HTML) ---
+    # 4. ¿Pidieron Web? Renderizamos HTML
     contexto = {
-        'recursos': recursos,
+        'recursos': Recurso.objects.all(), # Para llenar el select del filtro
         'lista_reportes': datos_reporte, 
         'mostrar_reporte': len(datos_reporte) > 0,
         'hoy': date.today(),

@@ -4,8 +4,12 @@ from .models import Proyecto, Tarea
 # 1. Configuración del Admin de PROYECTOS
 @admin.register(Proyecto)
 class ProyectoAdmin(admin.ModelAdmin):
+    # 1. Columnas que se ven
     list_display = ('nombre', 'unidad_negocio', 'centro_costo', 'fecha_inicio', 'fecha_fin_estimada')
-    list_filter = ('unidad_negocio', 'centro_costo') # Filtros laterales
+    
+    list_editable = ('unidad_negocio', 'centro_costo') 
+    
+    list_filter = ('unidad_negocio', 'centro_costo')
     search_fields = ('nombre', 'centro_costo')
 
 # 2. Configuración del Admin de TAREAS
