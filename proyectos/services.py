@@ -121,9 +121,7 @@ def procesar_excel_proyectos(archivo_excel):
     return {'creados': creados, 'actualizados': actualizados, 'errores': errores}
 
 def obtener_kpis_dashboard():
-    """
-    Calcula KPIs, Gráficas y Lista de Proyectos agrupados para el dashboard.
-    """
+    
     # 1. KPIs Generales
     total_proyectos = Proyecto.objects.count()
     total_recursos = Recurso.objects.filter(activo=True).count()
@@ -143,7 +141,6 @@ def obtener_kpis_dashboard():
     values_recursos = [r.num_tareas for r in recursos_ocupados]
 
     # 3. Lógica del Acordeón (Proyectos por Centro de Costo)
-    # Recuperamos la lógica que tenías antes
     proyectos_por_cc = []
     centros_unicos = Proyecto.objects.values_list('centro_costo', flat=True).distinct()
     
@@ -197,21 +194,21 @@ def obtener_candidatos_optimos(fecha_inicio_str, fecha_fin_str, perfil_id=None, 
     if perfil_id:
         recursos = recursos.filter(perfil_id=perfil_id)
 
-    # 3. Identificar IDs ocupados en ese rango (Query optimizada)
+    # 3. Identificar IDs ocupados en ese rango 
     ocupados_ids = Tarea.objects.filter(
         progreso__lt=100,
         fecha_inicio__lte=fecha_fin_str,
         fecha_fin__gte=fecha_inicio_str
     ).values_list('asignado_a_id', flat=True)
 
-    # 4. Procesar cada recurso (Algoritmo de Match)
+    # 4. Procesar cada recurso 
     for recurso in recursos:
         esta_ocupado = recurso.id in ocupados_ids
         
-        # A. Datos de Ocupación (Helper function abajo)
+        # A. Datos de Ocupación 
         info_ocupacion = _obtener_info_liberacion(recurso, esta_ocupado, fecha_inicio_str)
         
-        # B. Datos de Skills (Helper function abajo)
+        # B. Datos de Skills 
         info_skills = _calcular_match_tecnico(recurso, requisitos)
 
         # C. Construir candidato
@@ -224,7 +221,7 @@ def obtener_candidatos_optimos(fecha_inicio_str, fecha_fin_str, perfil_id=None, 
             'detalles': info_skills['detalles']
         })
 
-    # 5. Ordenamiento Inteligente: Primero los Libres, luego por mejor Match
+    # 5. Ordenamiento Inteligente
     candidatos_finales.sort(key=lambda x: (not x['ocupado'], x['match']), reverse=True)
     
     return candidatos_finales
@@ -414,7 +411,6 @@ def obtener_datos_reporte_clientes(cliente_id=None, fecha_inicio=None, fecha_fin
             completadas = proy.tareas.filter(progreso=100).count()
             
             # El progreso del proyecto es el promedio del progreso de sus tareas
-            # O puedes usar regla de tres simple (completadas / total)
             if total_tareas > 0:
                 progreso_real = round((completadas / total_tareas) * 100, 1)
             else:
@@ -453,7 +449,6 @@ def generar_excel_reporte_clientes(datos_reporte):
 
     # Estilos
     header_font = Font(bold=True, color="FFFFFF")
-    # Usamos un color diferente (Verde oscuro) para diferenciarlo del reporte de RRHH
     header_fill = PatternFill(start_color="198754", end_color="198754", fill_type="solid")
     
     # Encabezados

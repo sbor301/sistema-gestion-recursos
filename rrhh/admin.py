@@ -10,7 +10,7 @@ class ConocimientoAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'categoria')
     search_fields = ('nombre', 'categoria') # Vital para que funcione el autocompletado
 
-# 3. Configuración de la "Tabla Interna" (Inline)
+# 3. Configuración de la "Tabla Interna" 
 # Esto hace que las habilidades aparezcan DENTRO del empleado
 class HabilidadInline(admin.TabularInline):
     model = Habilidad

@@ -403,13 +403,13 @@ def reporte_cliente(request):
     # Nota: Si no hay filtros, el servicio decide qué traer (por defecto todo)
     datos_reporte = obtener_datos_reporte_clientes(cliente_id, fecha_inicio, fecha_fin)
 
-    # 3. ¿Pidieron Excel? (Descarga directa)
+    # 3.  Descarga directa Excel
     if es_excel and datos_reporte:
         return generar_excel_reporte_clientes(datos_reporte)
 
-    # 4. Renderizar HTML (Pantalla)
+    # 4. Renderizar HTML 
     contexto = {
-        'clientes': Cliente.objects.all(), # Para llenar el <select> del filtro
+        'clientes': Cliente.objects.all(), 
         'reporte_data': datos_reporte,
         'hoy': date.today(),
         'filtros': {
