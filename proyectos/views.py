@@ -4,19 +4,18 @@ from django.views.decorators.http import require_POST
 from django.core.serializers.json import DjangoJSONEncoder
 from .models import Tarea, Proyecto, Cliente
 from rrhh.models import Recurso, Perfil, Habilidad, Conocimiento
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import redirect, render
 from django.contrib import messages
 from django.db.models import Count, Q, Avg
 from django.utils import timezone
 from datetime import date, datetime
-from django.http import HttpResponse
 import openpyxl
 from django.contrib.auth.decorators import login_required
 from io import BytesIO
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from .services import procesar_excel_recursos, procesar_excel_proyectos, obtener_kpis_dashboard, obtener_datos_reporte_recursos, generar_excel_reporte, obtener_datos_reporte_clientes, generar_excel_reporte_clientes, obtener_candidatos_optimos
+from .services import procesar_excel_recursos, procesar_excel_proyectos, obtener_kpis_dashboard, obtener_datos_reporte_recursos, generar_excel_reporte, obtener_datos_reporte_clientes, generar_excel_reporte_clientes, obtener_candidatos_optimos, obtener_estado_personal, buscar_talento_por_skills, generar_workbook_talento, generar_pdf_talento_bytes
 import json
 
 @login_required
@@ -179,39 +178,17 @@ def index(request):
 @login_required
 @never_cache
 def ver_recursos(request):
-    hoy = timezone.now().date()
-    recursos = Recurso.objects.all()
-    info_recursos = []
+    # 1. Capturamos lo que el usuario escribió en la barra de búsqueda
+    busqueda = request.GET.get('q', '') # Si no hay nada, es una cadena vacía
     
-    for r in recursos:
-        # 1. Tareas ACTIVAS (Las que hacen que esté "Ocupado" HOY)
-        # Criterio: Ya empezó, no ha terminado su fecha fin, y no está al 100%
-        tareas_activas = Tarea.objects.filter(
-            asignado_a=r,
-            fecha_inicio__lte=hoy,
-            fecha_fin__gte=hoy,
-            progreso__lt=100
-        )
-
-        # 2. Tareas FUTURAS (Solo informativas, no afectan el estado de hoy)
-        # Criterio: Empiezan DESPUÉS de hoy
-        tareas_futuras = Tarea.objects.filter(
-            asignado_a=r,
-            fecha_inicio__gt=hoy,
-            progreso__lt=100
-        ).order_by('fecha_inicio')[:3] 
-        
-        # Determinar el estado según las tareas ACTIVAS
-        estado_actual = 'Ocupado' if tareas_activas.exists() else 'Disponible'
-
-        info_recursos.append({
-            'perfil': r,
-            'estado': estado_actual,
-            'tareas_activas': tareas_activas,
-            'tareas_futuras': tareas_futuras 
-        })
+    # 2. El servicio se encarga de todo
+    info_recursos = obtener_estado_personal(busqueda)
     
-    contexto = {'lista_recursos': info_recursos}
+    contexto = {
+        'lista_recursos': info_recursos,
+        'busqueda': busqueda # Para mantener el texto en la cajita después de buscar
+    }
+    
     return render(request, 'proyectos/recursos.html', contexto)
 
 @login_required
@@ -420,3 +397,75 @@ def reporte_cliente(request):
     }
 
     return render(request, 'proyectos/reporte_cliente.html', contexto)
+
+@login_required
+@never_cache
+def buscador_talento(request):
+    # 1. Obtener todos los conocimientos para el formulario (Select múltiple)
+    todos_conocimientos = Conocimiento.objects.all()
+    
+    # 2. Obtener selección del usuario
+    skills_seleccionadas = request.GET.getlist('skills')
+    
+    candidatos = []
+    if skills_seleccionadas:
+        candidatos = buscar_talento_por_skills(skills_seleccionadas)
+    
+    # Convertimos a enteros para marcar los selected en el HTML
+    filtros_ids = [int(x) for x in skills_seleccionadas]
+
+    skills_url_str = ",".join(skills_seleccionadas)
+
+    contexto = {
+        'conocimientos': todos_conocimientos,
+        'candidatos': candidatos,
+        'filtros': filtros_ids,
+        'skills_url': skills_url_str,
+    }
+    
+    return render(request, 'proyectos/buscador_talento.html', contexto)
+
+@login_required
+@never_cache
+def exportar_excel_talento(request):
+    """Vista delgada para exportar el Excel."""
+    skills_seleccionadas = request.GET.getlist('skills')
+    if not skills_seleccionadas:
+        return HttpResponse("No se seleccionaron habilidades.", status=400)
+    
+    # 1. Obtener datos (Capa de Servicio)
+    candidatos = buscar_talento_por_skills(skills_seleccionadas)
+    
+    # 2. Generar archivo (Capa de Servicio)
+    wb = generar_workbook_talento(candidatos)
+
+    # 3. Retornar HTTP Response (Capa de Vista)
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="Reporte_Talento_RMS.xlsx"'
+    wb.save(response)
+    
+    return response
+
+
+@login_required
+@never_cache
+def exportar_pdf_talento(request):
+    """Vista delgada para exportar el PDF."""
+    skills_seleccionadas = request.GET.getlist('skills')
+    if not skills_seleccionadas:
+        return HttpResponse("No se seleccionaron habilidades.", status=400)
+    
+    # 1. Obtener datos (Capa de Servicio)
+    candidatos = buscar_talento_por_skills(skills_seleccionadas)
+    
+    # 2. Generar archivo en memoria (Capa de Servicio)
+    pdf_bytes = generar_pdf_talento_bytes(candidatos)
+
+    if not pdf_bytes:
+        return HttpResponse('Tuvimos errores al generar el documento PDF.', status=500)
+
+    # 3. Retornar HTTP Response (Capa de Vista)
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="Reporte_Talento_RMS.pdf"'
+    
+    return response

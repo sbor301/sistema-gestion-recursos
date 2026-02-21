@@ -2,11 +2,16 @@
 from datetime import datetime, date
 from django.db.models import Count, Q
 import openpyxl
-from openpyxl.styles import Font, PatternFill
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from django.http import HttpResponse
 from datetime import datetime
+from django.utils import timezone
 from rrhh.models import Recurso, Habilidad, Conocimiento, Perfil
 from .models import Proyecto, Tarea, Cliente
+import io
+from django.template.loader import get_template
+from xhtml2pdf import pisa
 
 def procesar_excel_recursos(archivo_excel):
     wb = openpyxl.load_workbook(archivo_excel)
@@ -487,3 +492,188 @@ def generar_excel_reporte_clientes(datos_reporte):
     wb.save(response)
     
     return response
+
+def obtener_estado_personal(busqueda=None):
+    """
+    Obtiene el estado (Disponible/Ocupado) de los recursos.
+    Permite filtrar por nombre del recurso O por el nombre del perfil.
+    """
+    hoy = timezone.now().date()
+    
+    # 1. Filtro optimizado en Base de Datos
+    recursos = Recurso.objects.filter(activo=True) 
+    
+    if busqueda:
+        # CORRECCIÓN APLICADA:
+        # Usamos 'perfil__nombre' para buscar dentro del modelo relacionado Perfil
+        recursos = recursos.filter(
+            Q(nombre__icontains=busqueda) | 
+            Q(perfil__nombre__icontains=busqueda)
+        )
+
+    info_recursos = []
+
+    for r in recursos:
+        # Lógica de negocio
+        
+        # Tareas ACTIVAS (Ocupado HOY)
+        tareas_activas = Tarea.objects.filter(
+            asignado_a=r,
+            fecha_inicio__lte=hoy,
+            fecha_fin__gte=hoy,
+            progreso__lt=100
+        )
+
+        # Tareas FUTURAS (Próximas asignaciones)
+        tareas_futuras = Tarea.objects.filter(
+            asignado_a=r,
+            fecha_inicio__gt=hoy,
+            progreso__lt=100
+        ).order_by('fecha_inicio')[:3]
+        
+        estado_actual = 'Ocupado' if tareas_activas.exists() else 'Disponible'
+
+        info_recursos.append({
+            'perfil': r,
+            'estado': estado_actual,
+            'tareas_activas': tareas_activas,
+            'tareas_futuras': tareas_futuras
+        })
+        
+    return info_recursos
+
+def buscar_talento_por_skills(conocimientos_ids):
+    """
+    Busca recursos que cumplan con una lista de conocimientos (IDs).
+    Retorna una lista de diccionarios con el recurso y su puntaje de match.
+    """
+    if not conocimientos_ids:
+        return []
+
+    # Convertimos los IDs a enteros
+    ids_requeridos = [int(id) for id in conocimientos_ids]
+    
+    # Traemos los objetos Conocimiento para saber sus nombres
+    conocimientos_objs = Conocimiento.objects.filter(id__in=ids_requeridos)
+    
+    # Optimizamos la consulta con prefetch_related para no matar la BD
+    recursos = Recurso.objects.filter(activo=True).prefetch_related('habilidades')
+    
+    resultados = []
+
+    for recurso in recursos:
+        puntos_totales = 0
+        detalles_skills = []
+        cumple_alguno = False
+
+        for conocimiento in conocimientos_objs:
+            # Buscamos si el recurso tiene la habilidad
+            # (Usamos filter en memoria o query, aquí query es seguro por el prefetch)
+            habilidad = recurso.habilidades.filter(conocimiento=conocimiento).first()
+            
+            if habilidad:
+                cumple_alguno = True
+                # Nivel 1-5 convertido a puntos (20, 40, 60, 80, 100)
+                puntos = (habilidad.nivel / 5) * 100
+                puntos_totales += puntos
+                detalles_skills.append({
+                    'nombre': conocimiento.nombre,
+                    'nivel': habilidad.get_nivel_display(),
+                    'score': habilidad.nivel,
+                    'tiene': True
+                })
+            else:
+                detalles_skills.append({
+                    'nombre': conocimiento.nombre,
+                    'nivel': '-',
+                    'score': 0,
+                    'tiene': False
+                })
+
+        # Solo agregamos si cumple al menos con UN requisito (opcional)
+        # O calculamos el promedio sobre el total de requisitos pedidos
+        if cumple_alguno:
+            promedio_match = round(puntos_totales / len(ids_requeridos))
+            
+            resultados.append({
+                'recurso': recurso,
+                'match': promedio_match,
+                'skills_detalle': detalles_skills
+            })
+
+    # Ordenamos: Mayor match primero
+    resultados.sort(key=lambda x: x['match'], reverse=True)
+    
+    return resultados
+
+def generar_workbook_talento(candidatos):
+    """
+    Recibe una lista de candidatos y construye un objeto Workbook de Excel.
+    """
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Reporte de Talento"
+
+    # Estilos
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="1A73E8", end_color="1A73E8", fill_type="solid")
+    center_aligned = Alignment(horizontal="center", vertical="center")
+    left_aligned = Alignment(horizontal="left", vertical="center", wrap_text=True)
+    thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+    # Encabezados
+    headers = ['Nombre del Recurso', 'Cargo / Perfil', 'Match', 'Habilidades Cumplidas', 'Brecha (Faltantes)']
+    ws.append(headers)
+
+    for col_num, cell in enumerate(ws[1], 1):
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = center_aligned
+        cell.border = thin_border
+
+    # Datos
+    for cand in candidatos:
+        recurso = cand['recurso']
+        perfil = recurso.perfil.nombre if hasattr(recurso, 'perfil') and recurso.perfil else 'Sin perfil'
+        
+        cumplidas = [f"• {s['nombre']} ({s['nivel']})" for s in cand['skills_detalle'] if s['tiene']]
+        faltantes = [f"• {s['nombre']}" for s in cand['skills_detalle'] if not s['tiene']]
+
+        row = [
+            recurso.nombre,
+            perfil,
+            f"{cand['match']}%",
+            "\n".join(cumplidas) if cumplidas else "Ninguna",
+            "\n".join(faltantes) if faltantes else "Ninguna"
+        ]
+        ws.append(row)
+
+        for cell in ws[ws.max_row]:
+            cell.border = thin_border
+            cell.alignment = center_aligned if cell.column == 3 else left_aligned
+
+    # Ajustar ancho de columnas
+    ws.column_dimensions['A'].width = 30
+    ws.column_dimensions['B'].width = 25
+    ws.column_dimensions['C'].width = 12
+    ws.column_dimensions['D'].width = 45
+    ws.column_dimensions['E'].width = 45
+
+    return wb
+
+
+def generar_pdf_talento_bytes(candidatos, template_path='proyectos/pdf_talento.html'):
+    """
+    Recibe una lista de candidatos, renderiza el HTML y retorna los bytes del PDF.
+    """
+    template = get_template(template_path)
+    html = template.render({'candidatos': candidatos})
+    
+    # Usamos un buffer de memoria en lugar de escribir a disco o a la respuesta HTTP directamente
+    result = io.BytesIO()
+    pisa_status = pisa.CreatePDF(html, dest=result)
+    
+    if pisa_status.err:
+        return None
+        
+    return result.getvalue()

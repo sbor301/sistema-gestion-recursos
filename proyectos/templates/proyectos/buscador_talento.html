@@ -1,0 +1,156 @@
+{% extends 'proyectos/base.html' %}
+{% load static %}
+
+{% block content %}
+
+<link rel="stylesheet" href="{% static 'css/buscador_talento.css' %}">
+
+<div class="container mt-4">
+
+    <div class="text-center mb-4">
+        <h2 class="fw-bold text-dark">Buscador de Habilidades</h2>
+        <p class="text-muted">Filtra por conocimientos técnicos y encuentra al personal ideal.</p>
+    </div>
+
+    <div class="row justify-content-center mb-5">
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0 bg-white">
+                <div class="card-body p-4">
+                    <form id="talentForm" method="GET" action="">
+                        <select name="skills" id="realSelect" multiple style="display: none;">
+                            {% for c in conocimientos %}
+                            <option value="{{ c.id }}" {% if c.id in filtros %}selected{% endif %}>
+                                {{ c.nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+
+                        <label class="form-label fw-bold small text-muted text-uppercase">Habilidades Técnicas</label>
+
+                        <div class="search-container">
+                            <div class="tags-input-area" id="tagsArea">
+                                <input type="text" id="skillInput" placeholder="Escribe para buscar (ej: PLC, SCADA)..."
+                                    autocomplete="off">
+                            </div>
+                            <div class="suggestions-list" id="suggestionsList"></div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-3">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnClear">
+                                <i class="bi bi-x-circle"></i> Limpiar
+                            </button>
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="bi bi-search"></i> Buscar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if filtros %}
+    <div class="d-flex justify-content-between align-items-end mb-3 border-bottom pb-2">
+        <div>
+            <h5 class="fw-bold text-secondary mb-1">Candidatos Sugeridos</h5>
+            <span class="badge bg-white text-dark border shadow-sm">{{ candidatos|length }} encontrados</span>
+        </div>
+
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm shadow-sm dropdown-toggle rounded-pill px-3" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-download me-1"></i> Exportar
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow">
+                <li>
+                    <a class="dropdown-item fw-bold text-success"
+                        href="{% url 'exportar_talento_excel' %}?{{ request.GET.urlencode }}">
+                        <i class="bi bi-file-earmark-excel me-2"></i>Como Excel (.xlsx)
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item fw-bold text-danger"
+                        href="{% url 'exportar_talento_pdf' %}?{{ request.GET.urlencode }}">
+                        <i class="bi bi-file-earmark-pdf me-2"></i>Como PDF (.pdf)
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        {% for cand in candidatos %}
+        <div class="col-md-6 col-lg-4 col-xl-3">
+            <div class="card h-100 card-talent shadow-sm rounded-3">
+
+                <div class="card-body pb-0">
+                    <div class="card-header-flex">
+                        <div class="avatar-circle">
+                            {{ cand.recurso.nombre|slice:":2" }}
+                        </div>
+
+                        <div class="info-container">
+                            <h5 class="card-title fw-bold" title="{{ cand.recurso.nombre }}">
+                                {{ cand.recurso.nombre }}
+                            </h5>
+                            <p class="card-text text-muted small">
+                                {{ cand.recurso.perfil }}
+                            </p>
+                        </div>
+
+                        <div
+                            class="match-ring {% if cand.match >= 80 %}bg-success text-white{% elif cand.match >= 50 %}bg-warning text-dark{% else %}bg-danger text-white{% endif %}">
+                            {{ cand.match }}%
+                        </div>
+                    </div>
+
+                    <hr class="border-light mt-2 mb-3">
+                </div>
+
+                <div class="card-body pt-0">
+                    <p class="small fw-bold text-secondary mb-2">Competencias:</p>
+                    <div class="mb-3">
+                        {% for skill in cand.skills_detalle %}
+                        {% if skill.tiene %}
+                        <div class="skill-badge skill-match">
+                            <span><i class="bi bi-check2-circle me-1"></i> {{ skill.nombre }}</span>
+                            <span class="level-indicator text-primary">{{ skill.nivel }}</span>
+                        </div>
+                        {% else %}
+                        <div class="skill-badge skill-missing">
+                            <span><i class="bi bi-x-circle me-1"></i> {{ skill.nombre }}</span>
+                            <span class="level-indicator text-muted">N/A</span>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="card-footer bg-white border-0 pt-0 pb-3">
+                    <div class="d-grid">
+                        <a href="/admin/proyectos/tarea/add/?asignado_a={{ cand.recurso.id }}&skills={{ skills_url }}"
+                            target="_blank" class="btn btn-outline-primary btn-sm rounded-pill">
+                            <i class="bi bi-plus-circle me-2"></i>Asignar Tarea
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center py-5">
+            <h4 class="text-muted opacity-50"><i class="bi bi-search display-4"></i></h4>
+            <h5 class="text-muted mt-3">Sin coincidencias</h5>
+            <p class="text-muted small">Intenta reducir los filtros.</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+</div>
+
+<script src="{% static 'js/buscador_talento.js' %}"></script>
+
+{% block extra_js %}
+{% endblock %}
+
+{% endblock %}

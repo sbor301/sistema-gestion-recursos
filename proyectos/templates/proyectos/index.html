@@ -81,7 +81,6 @@
     <div class="row">
         <div class="col-12">
             <h4 class="mb-3 text-secondary"><i class="bi bi-list-nested me-2"></i>Desglose por Centro de Costo</h4>
-            
             <div class="card shadow-sm border-0">
                 <div class="card-body p-0"> 
                     {% if proyectos_por_cc %}
@@ -153,6 +152,7 @@
                 </div>
             </a>
         </div>
+        
         <div class="col-md-3 col-sm-6">
             <a href="{% url 'buscar' %}" class="text-decoration-none">
                 <div class="card h-100 hover-shadow border-success shadow-sm">
@@ -163,12 +163,24 @@
                 </div>
             </a>
         </div>
+
         <div class="col-md-3 col-sm-6">
             <a href="{% url 'recursos' %}" class="text-decoration-none">
                 <div class="card h-100 hover-shadow border-warning shadow-sm">
                     <div class="card-body text-center p-4">
                         <i class="bi bi-people display-4 text-warning mb-2"></i>
                         <h5 class="mt-2 text-dark">Personal</h5>
+                    </div>
+                </div>
+            </a>
+        </div>
+        
+        <div class="col-md-3 col-sm-6">
+            <a href="{% url 'buscador_talento' %}" class="text-decoration-none">
+                <div class="card h-100 hover-shadow border-danger shadow-sm">
+                    <div class="card-body text-center p-4">
+                        <i class="bi bi-stars display-4 text-danger mb-2"></i>
+                        <h5 class="mt-2 text-dark">Habilidades</h5>
                     </div>
                 </div>
             </a>

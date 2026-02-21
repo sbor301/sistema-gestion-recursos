@@ -16,6 +16,10 @@ urlpatterns = [
     path('importar/proyectos/', views.importar_proyectos_excel, name='importar_proyectos_excel'),
     path('importar/plantilla-proyectos/', views.descargar_plantilla_proyectos, name='descargar_plantilla_proyectos'),
     path('reportes/clientes/', views.reporte_cliente, name='reporte_cliente'),
+    path('talento/buscar/', views.buscador_talento, name='buscador_talento'),
+    path('talento/exportar/excel/', views.exportar_excel_talento, name='exportar_talento_excel'),
+    path('talento/exportar/pdf/', views.exportar_pdf_talento, name='exportar_talento_pdf'),
+
     
     
     # Funcionalidades / API 
