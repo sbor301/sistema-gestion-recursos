@@ -3,7 +3,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from django.core.serializers.json import DjangoJSONEncoder
 from .models import Tarea, Proyecto, Cliente
-from rrhh.models import Recurso, Perfil, Habilidad, Conocimiento
+from rrhh.models import Recurso, Perfil, Habilidad, Conocimiento #VALIDAR IMPORTS
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import redirect, render
