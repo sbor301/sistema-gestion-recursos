@@ -12,10 +12,11 @@ from django.db.models import Count, Q, Avg
 from django.utils import timezone
 from datetime import date, datetime
 import openpyxl
+import time
 from django.contrib.auth.decorators import login_required
 from io import BytesIO
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from .services import procesar_excel_recursos, procesar_excel_proyectos, obtener_kpis_dashboard, obtener_datos_reporte_recursos, generar_excel_reporte, obtener_datos_reporte_clientes, generar_excel_reporte_clientes, obtener_candidatos_optimos, obtener_estado_personal, buscar_talento_por_skills, generar_workbook_talento, generar_pdf_talento_bytes
+from .services import procesar_excel_recursos, procesar_excel_proyectos, obtener_kpis_dashboard, obtener_datos_reporte_recursos, generar_excel_reporte, obtener_datos_reporte_clientes, generar_excel_reporte_clientes, obtener_candidatos_optimos, obtener_estado_personal, buscar_talento_por_skills, generar_workbook_talento, generar_pdf_talento_bytes, obtener_codigo_actual_proyecto, obtener_uri_qr_proyecto, registrar_asistencia
 import json
 
 @login_required
@@ -469,3 +470,81 @@ def exportar_pdf_talento(request):
     response['Content-Disposition'] = 'attachment; filename="Reporte_Talento_RMS.pdf"'
     
     return response
+
+# ==========================================
+# VISTAS DE ASISTENCIA (SUPERVISOR)
+# ==========================================
+
+def panel_supervisor_qr(request, proyecto_id):
+    """
+    Carga la pantalla gigante que el supervisor pondrá en su tablet/monitor.
+    """
+    proyecto = get_object_or_404(Proyecto, id=proyecto_id)
+    # Obtenemos el texto del QR (esto no cambia mientras el proyecto viva)
+    uri_qr = obtener_uri_qr_proyecto(proyecto)
+    
+    return render(request, 'proyectos/panel_qr.html', {
+        'proyecto': proyecto,
+        'uri_qr': uri_qr
+    })
+
+def api_codigo_actual(request, proyecto_id):
+    """
+    Un endpoint ligero (JSON) que devuelve el número de 6 dígitos actual 
+    y los segundos que le quedan de vida.
+    """
+    proyecto = get_object_or_404(Proyecto, id=proyecto_id)
+    codigo = obtener_codigo_actual_proyecto(proyecto)
+    
+    # Matemáticas para saber cuántos segundos faltan para el próximo minuto
+    segundos_actuales = int(time.time())
+    tiempo_restante = 60 - (segundos_actuales % 60)
+    
+    return JsonResponse({
+        'codigo': codigo,
+        'tiempo_restante': tiempo_restante
+    })
+
+def registro_asistencia_operario(request, proyecto_id):
+    proyecto = get_object_or_404(Proyecto, id=proyecto_id)
+    recursos = Recurso.objects.filter(activo=True).order_by('nombre')
+
+    if request.method == 'POST':
+        recurso_id = request.POST.get('recurso_id')
+        tipo_registro = request.POST.get('tipo_registro')
+        codigo_ingresado = request.POST.get('codigo')
+
+        recurso = get_object_or_404(Recurso, id=recurso_id)
+
+        # Recibimos el estado y el mensaje directamente de nuestra capa de lógica
+        exito, mensaje = registrar_asistencia(
+            proyecto=proyecto,
+            recurso=recurso,
+            codigo_ingresado=codigo_ingresado,
+            tipo_registro=tipo_registro,
+            metodo='MANUAL'
+        )
+
+        if exito:
+            messages.success(request, mensaje)
+            return redirect('registro_asistencia_operario', proyecto_id=proyecto.id)
+        else:
+            messages.error(request, f"❌ {mensaje}")
+
+    return render(request, 'proyectos/registro_asistencia.html', {
+        'proyecto': proyecto,
+        'recursos': recursos
+    })
+
+def portal_asistencia(request):
+    """
+    Un hub central independiente para que el personal o supervisores 
+    elijan su proyecto antes de escanear o proyectar el QR.
+    """
+    hoy = timezone.now().date()
+    # Solo mostramos proyectos que no hayan terminado
+    proyectos_activos = Proyecto.objects.filter(fecha_fin_estimada__gte=hoy).order_by('nombre')
+
+    return render(request, 'proyectos/portal_asistencia.html', {
+        'proyectos_activos': proyectos_activos
+    })

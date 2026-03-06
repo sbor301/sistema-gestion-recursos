@@ -1,17 +1,19 @@
 # proyectos/services.py
-from datetime import datetime, date
-from django.db.models import Count, Q
+import pyotp
+import io
 import openpyxl
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from datetime import datetime, date
+from django.db.models import Count, Q
 from django.http import HttpResponse
-from datetime import datetime
 from django.utils import timezone
-from rrhh.models import Recurso, Habilidad, Conocimiento, Perfil
-from .models import Proyecto, Tarea, Cliente
-import io
 from django.template.loader import get_template
 from xhtml2pdf import pisa
+
+from rrhh.models import Recurso, Habilidad, Conocimiento, Perfil
+# IMPORTANTE: Agregamos Asistencia aquí
+from .models import Proyecto, Tarea, Cliente, Asistencia
 
 def procesar_excel_recursos(archivo_excel):
     wb = openpyxl.load_workbook(archivo_excel)
@@ -677,3 +679,75 @@ def generar_pdf_talento_bytes(candidatos, template_path='proyectos/pdf_talento.h
         return None
         
     return result.getvalue()
+
+
+# SERVICIOS DE CONTROL DE ASISTENCIA (TOTP)
+
+
+def obtener_generador_totp(proyecto):
+    """
+    Función de apoyo que configura el motor matemático.
+    """
+    if not proyecto.llave_asistencia:
+        raise ValueError("El proyecto no tiene una llave de asistencia configurada.")
+    
+    # interval=60 significa que el código cambia cada 1 minuto
+    return pyotp.TOTP(proyecto.llave_asistencia, interval=60)
+
+def obtener_codigo_actual_proyecto(proyecto):
+    """
+    Devuelve el código numérico de 6 dígitos válido en este preciso momento.
+    Este es el número que el supervisor verá en su pantalla.
+    """
+    totp = obtener_generador_totp(proyecto)
+    return totp.now()
+
+def obtener_uri_qr_proyecto(proyecto):
+    """
+    Genera el texto exacto que debe ir dentro del código QR.
+    Usamos el formato estándar de autenticación.
+    """
+    totp = obtener_generador_totp(proyecto)
+    # Esto genera un texto tipo: otpauth://totp/RMS:NombreProyecto?secret=LLAVE&issuer=RMS
+    return totp.provisioning_uri(name=proyecto.nombre, issuer_name="RMS Indutronica")
+
+def registrar_asistencia(proyecto, recurso, codigo_ingresado, tipo_registro='ENTRADA', metodo='MANUAL'):
+    """
+    Valida el código TOTP y aplica reglas de negocio (evitar dobles entradas o salidas).
+    Retorna una tupla: (exito_booleano, mensaje_texto)
+    """
+    totp = obtener_generador_totp(proyecto)
+    es_valido = totp.verify(codigo_ingresado, valid_window=1)
+    
+    if not es_valido:
+        return False, "Código incorrecto o vencido. Pide el nuevo código al supervisor."
+
+    # --- REGLAS DE NEGOCIO ---
+    hoy = timezone.now().date()
+    
+    # Buscamos el último registro de esta persona, en este proyecto, el día de hoy
+    ultimo_registro = Asistencia.objects.filter(
+        proyecto=proyecto,
+        recurso=recurso,
+        fecha_hora__date=hoy
+    ).order_by('-fecha_hora').first()
+
+    if ultimo_registro:
+        # Si intenta registrar ENTRADA pero su último registro ya fue ENTRADA
+        if ultimo_registro.tipo_registro == tipo_registro:
+            return False, f"Ya tienes una {tipo_registro} registrada. Debes registrar una {'SALIDA' if tipo_registro == 'ENTRADA' else 'ENTRADA'} primero."
+    else:
+        # Si es el primer registro del día y está intentando registrar una SALIDA
+        if tipo_registro == 'SALIDA':
+            return False, "No puedes registrar una SALIDA sin haber registrado tu ENTRADA hoy."
+
+    # Si pasa todas las validaciones matemáticas y lógicas, guardamos
+    Asistencia.objects.create(
+        proyecto=proyecto,
+        recurso=recurso,
+        fecha_hora=timezone.now(),
+        tipo_registro=tipo_registro,
+        metodo_validacion=metodo
+    )
+    
+    return True, f"¡Asistencia de {tipo_registro} registrada exitosamente!"

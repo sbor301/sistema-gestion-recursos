@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Proyecto, Tarea, Cliente
+from .models import Proyecto, Tarea, Cliente, Asistencia # <-- Agregamos Asistencia
 
 # 1. Configuración del Admin de CLIENTES
 @admin.register(Cliente)
@@ -17,6 +17,9 @@ class ProyectoAdmin(admin.ModelAdmin):
     
     list_filter = ('unidad_negocio', 'centro_costo')
     search_fields = ('nombre', 'centro_costo')
+    
+    # NUEVO: Protegemos la llave secreta para que nadie la modifique por error
+    readonly_fields = ('llave_asistencia',)
 
 # 3. Configuración del Admin de TAREAS 
 @admin.register(Tarea)
@@ -61,10 +64,18 @@ class TareaAdmin(admin.ModelAdmin):
         skills_str = request.GET.get('skills')
         if skills_str:
             try:
-                # Convertir  en una lista de enteros 
+                # Convertir en una lista de enteros 
                 skill_ids = [int(s) for s in skills_str.split(',') if s.isdigit()]
                 initial['requisitos'] = skill_ids
             except ValueError:
                 pass # Si hay basura en la URL, se ignora
 
         return initial
+
+# 4. NUEVO: Configuración del Admin de ASISTENCIAS
+@admin.register(Asistencia)
+class AsistenciaAdmin(admin.ModelAdmin):
+    list_display = ('recurso', 'proyecto', 'tipo_registro', 'fecha_hora', 'metodo_validacion')
+    list_filter = ('proyecto', 'tipo_registro', 'metodo_validacion')
+    search_fields = ('recurso__nombre', 'proyecto__nombre')
+    date_hierarchy = 'fecha_hora' # Calendario navegable en la parte superior

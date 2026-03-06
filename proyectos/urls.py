@@ -19,6 +19,10 @@ urlpatterns = [
     path('talento/buscar/', views.buscador_talento, name='buscador_talento'),
     path('talento/exportar/excel/', views.exportar_excel_talento, name='exportar_talento_excel'),
     path('talento/exportar/pdf/', views.exportar_pdf_talento, name='exportar_talento_pdf'),
+    path('proyecto/<int:proyecto_id>/asistencia/panel/', views.panel_supervisor_qr, name='panel_supervisor_qr'),
+    path('api/proyecto/<int:proyecto_id>/codigo-actual/', views.api_codigo_actual, name='api_codigo_actual'),
+    path('proyecto/<int:proyecto_id>/asistencia/registro/', views.registro_asistencia_operario, name='registro_asistencia_operario'),
+    path('asistencia/', views.portal_asistencia, name='portal_asistencia'),
 
     
     

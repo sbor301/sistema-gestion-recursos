@@ -1,5 +1,7 @@
+import pyotp
 from django.db import models
 from datetime import date
+from django.utils import timezone
 from rrhh.models import Recurso, Conocimiento
 
 class Cliente(models.Model):
@@ -53,6 +55,23 @@ class Proyecto(models.Model):
     fecha_fin_estimada = models.DateField()
     descripcion = models.TextField(blank=True)
 
+    # ==========================================
+    # Campo de seguridad para el QR Dinámico
+    # ==========================================
+    llave_asistencia = models.CharField(
+        max_length=32, 
+        blank=True, 
+        null=True, 
+        verbose_name="Llave Secreta TOTP",
+        help_text="Generada automáticamente. No modificar."
+    )
+
+    def save(self, *args, **kwargs):
+        # Si el proyecto se está creando y no tiene llave, se le genera una
+        if not self.llave_asistencia:
+            self.llave_asistencia = pyotp.random_base32()
+        super().save(*args, **kwargs)
+
     def __str__(self):
         cliente_str = f" - {self.cliente.nombre}" if self.cliente else ""
         return f"{self.nombre}{cliente_str} ({self.centro_costo})"
@@ -61,13 +80,11 @@ class Tarea(models.Model):
     nombre = models.CharField(max_length=200)
     proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE, related_name='tareas')
     
-    # Aquí es donde asignamos: "Esta tarea es para Jairo"
     asignado_a = models.ForeignKey(Recurso, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Responsable")
     
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField()
     
-    # Lógica de Predecesoras 
     predecesora = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='sucesoras')
     
     progreso = models.IntegerField(default=0, help_text="% Completado")
@@ -92,3 +109,32 @@ class Tarea(models.Model):
 
     def __str__(self):
         return f"{self.nombre} - {self.asignado_a}"
+
+# ==========================================
+# Control de Asistencia en Campo
+# ==========================================
+class Asistencia(models.Model):
+    proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE, related_name='asistencias')
+    recurso = models.ForeignKey(Recurso, on_delete=models.CASCADE, related_name='asistencias')
+    fecha_hora = models.DateTimeField(default=timezone.now, verbose_name="Fecha y Hora de Registro")
+    
+    tipo_registro = models.CharField(
+        max_length=10,
+        choices=[('ENTRADA', 'Entrada'), ('SALIDA', 'Salida')],
+        default='ENTRADA'
+    )
+    
+    metodo_validacion = models.CharField(
+        max_length=20,
+        choices=[('QR', 'Escaneo QR'), ('MANUAL', 'Código Numérico')],
+        default='QR',
+        verbose_name="Método de Ingreso"
+    )
+
+    class Meta:
+        verbose_name = 'Registro de Asistencia'
+        verbose_name_plural = 'Registros de Asistencias'
+        ordering = ['-fecha_hora'] # Ordena mostrando los más recientes primero
+
+    def __str__(self):
+        return f"{self.recurso} - {self.proyecto.nombre} ({self.tipo_registro})"
